@@ -1,0 +1,39 @@
+# Dependencias
+node_modules
+package-lock.json
+yarn.lock
+
+# Archivos compilados
+dist
+build
+out
+*.tsbuildinfo
+
+# Archivos de configuración locales
+.env
+.env.local
+.env.*.local
+
+# Logs
+logs
+*.log
+npm-debug.log*
+yarn-debug.log*
+yarn-error.log*
+
+# Editor/IDE
+.idea
+.vscode
+*.swp
+*.swo
+
+# Sistema operativo
+.DS_Store
+Thumbs.db
+
+# Archivos de cobertura de tests
+coverage
+
+# Archivos temporales
+tmp
+temp
