@@ -9,6 +9,7 @@ Cyber-MySQL-OpenAI es una potente librería para Node.js que traduce consultas e
 - **Corrección autónoma de errores**: Detecta y corrige errores en las consultas generadas
 - **Explicaciones en lenguaje natural**: Traduce los resultados técnicos a explicaciones amigables
 - **Soporte multiidioma**: Disponible en español e inglés con cambio dinámico de idioma
+- **Cache inteligente en memoria**: Sistema de cache opcional de alto rendimiento para optimización de consultas
 - **Soporte para TypeScript**: Tipos completos para una mejor experiencia de desarrollo
 - **Altamente configurable**: Adapta la librería a tus necesidades específicas
 - **Logging avanzado**: Sistema de logging detallado para diagnóstico y auditoría
@@ -89,6 +90,14 @@ const translator = new CyberMySQLOpenAI({
     model: 'gpt-4' // o 'gpt-3.5-turbo', etc.
   },
   
+  // Configuración del cache (opcional)
+  cache: {
+    enabled: true,        // Habilitar/deshabilitar cache
+    maxSize: 1000,        // Máximo de entradas en cache
+    defaultTTL: 300000,   // TTL por defecto en milisegundos (5 minutos)
+    cleanupInterval: 300000 // Intervalo de limpieza en milisegundos
+  },
+  
   // Configuración adicional
   maxReflections: 3, // Número máximo de intentos de corrección
   logLevel: 'info', // 'error', 'warn', 'info', 'debug' o 'none' para desactivar
@@ -97,6 +106,89 @@ const translator = new CyberMySQLOpenAI({
   language: 'es' // Idioma de respuestas: 'es' (Español) o 'en' (Inglés)
 });
 ```
+
+## 🚀 Sistema de Cache Inteligente
+
+Cyber-MySQL-OpenAI incluye un sistema de cache en memoria opcional de alto rendimiento que mejora significativamente los tiempos de respuesta para consultas repetidas.
+
+### Características del Cache
+
+- **Normalización inteligente de consultas**: Normaliza automáticamente las consultas SQL para maximizar los aciertos de cache
+- **TTL variable**: Tiempo de vida dinámico basado en la complejidad de la consulta y el tamaño del resultado
+- **Limpieza automática**: Eliminación periódica de entradas expiradas
+- **Estadísticas y monitoreo**: Métricas de rendimiento del cache en tiempo real
+- **Optimización de memoria**: Uso eficiente de memoria con límites configurables
+
+### Uso Básico del Cache
+
+```typescript
+// Habilitar cache durante la inicialización
+const translator = new CyberMySQLOpenAI({
+  // ... configuración de base de datos y OpenAI
+  cache: {
+    enabled: true,
+    maxSize: 1000,
+    defaultTTL: 300000, // 5 minutos
+    cleanupInterval: 300000
+  }
+});
+
+// Las consultas usarán automáticamente el cache
+const result1 = await translator.query('Muéstrame todos los usuarios'); // Consulta a base de datos
+const result2 = await translator.query('Muéstrame todos los usuarios'); // ¡Cache hit!
+
+console.log('Desde cache:', result2.fromCache); // true
+console.log('Tiempo de ejecución:', result2.executionTime); // Mucho más rápido
+```
+
+### Gestión del Cache
+
+```typescript
+// Obtener estadísticas del cache
+const stats = translator.getCacheStats();
+console.log('Tasa de aciertos del cache:', stats.hitRate);
+console.log('Total de entradas:', stats.totalEntries);
+
+// Limpiar cache
+translator.clearCache();
+
+// Deshabilitar/habilitar cache dinámicamente
+translator.disableCache();
+translator.enableCache();
+
+// Obtener estado del cache
+const isEnabled = translator.isCacheEnabled();
+```
+
+### Mejores Prácticas para Integración en APIs
+
+Para un rendimiento óptimo del cache en APIs, usa una instancia global:
+
+```typescript
+// api-instance.ts
+import { CyberMySQLOpenAI } from 'cyber-mysql-openai';
+
+export const translator = new CyberMySQLOpenAI({
+  // ... configuración
+  cache: { enabled: true, maxSize: 2000 }
+});
+
+// api-routes.ts
+import { translator } from './api-instance';
+
+app.get('/query', async (req, res) => {
+  const result = await translator.query(req.body.question);
+  res.json({
+    ...result,
+    cached: result.fromCache,
+    responseTime: result.executionTime
+  });
+});
+```
+
+⚠️ **Importante**: El cache persiste entre diferentes requests y usuarios. Asegúrate de que este comportamiento sea apropiado para tu caso de uso. Para datos específicos de usuario, considera implementar estrategias de invalidación de cache.
+
+Para más ejemplos de cache y uso avanzado, ver [docs/cache-examples.md](docs/cache-examples.md).
 
 ## 🌐 Soporte Multiidioma
 
@@ -161,6 +253,23 @@ Cambia el idioma de respuesta dinámicamente.
 
 #### `getLanguage(): 'es' | 'en'`
 Devuelve la configuración de idioma actual.
+
+### Métodos del Cache
+
+#### `getCacheStats(): CacheStats`
+Devuelve estadísticas de rendimiento del cache incluyendo tasa de aciertos, uso de memoria y conteo de entradas.
+
+#### `clearCache(): void`
+Elimina todas las entradas del cache.
+
+#### `enableCache(): void`
+Habilita el sistema de cache.
+
+#### `disableCache(): void`
+Deshabilita el sistema de cache.
+
+#### `isCacheEnabled(): boolean`
+Devuelve si el cache está actualmente habilitado.
 
 ### Opciones de respuesta natural
 

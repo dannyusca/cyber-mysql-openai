@@ -20,12 +20,17 @@ export {
   DBConfig,
   OpenAIConfig,
   CyberMySQLOpenAIConfig,
+  CacheConfig,
   TranslationResult,
   SQLResult,
   NaturalResponseOptions,
   Reflection,
-  LogLevel
+  LogLevel,
+  CacheStats
 } from './types';
+
+// Exportar sistema de cache
+export { MemoryCache } from './cache/memoryCache';
 
 // Exportar configuraciones predeterminadas
 export {

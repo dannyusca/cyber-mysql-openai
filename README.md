@@ -9,6 +9,7 @@ Cyber-MySQL-OpenAI is a powerful Node.js library that translates natural languag
 - **Autonomous error correction**: Detects and corrects errors in generated queries
 - **Natural language explanations**: Translates technical results to user-friendly explanations
 - **Multi-language support**: Available in English and Spanish with dynamic language switching
+- **Intelligent memory cache**: Optional high-performance in-memory cache system for query optimization
 - **TypeScript support**: Complete types for better development experience
 - **Highly configurable**: Adapt the library to your specific needs
 - **Advanced logging**: Detailed logging system for diagnostics and auditing
@@ -89,6 +90,14 @@ const translator = new CyberMySQLOpenAI({
     model: 'gpt-4' // or 'gpt-3.5-turbo', etc.
   },
   
+  // Cache configuration (optional)
+  cache: {
+    enabled: true,        // Enable/disable cache
+    maxSize: 1000,        // Maximum cache entries
+    defaultTTL: 300000,   // Default TTL in milliseconds (5 minutes)
+    cleanupInterval: 300000 // Cleanup interval in milliseconds
+  },
+  
   // Additional configuration
   maxReflections: 3, // Maximum number of correction attempts
   logLevel: 'info', // 'error', 'warn', 'info', 'debug' or 'none' to disable
@@ -98,7 +107,90 @@ const translator = new CyberMySQLOpenAI({
 });
 ```
 
-## 📋 API
+## � Intelligent Cache System
+
+Cyber-MySQL-OpenAI includes an optional high-performance in-memory cache system that significantly improves response times for repeated queries.
+
+### Cache Features
+
+- **Intelligent query normalization**: Automatically normalizes SQL queries to maximize cache hits
+- **Variable TTL**: Dynamic time-to-live based on query complexity and result size
+- **Automatic cleanup**: Periodic removal of expired entries
+- **Statistics and monitoring**: Real-time cache performance metrics
+- **Memory optimization**: Efficient memory usage with configurable limits
+
+### Basic Cache Usage
+
+```typescript
+// Enable cache during initialization
+const translator = new CyberMySQLOpenAI({
+  // ... database and OpenAI config
+  cache: {
+    enabled: true,
+    maxSize: 1000,
+    defaultTTL: 300000, // 5 minutes
+    cleanupInterval: 300000
+  }
+});
+
+// Queries will automatically use cache
+const result1 = await translator.query('Show me all users'); // Database query
+const result2 = await translator.query('Show me all users'); // Cache hit!
+
+console.log('From cache:', result2.fromCache); // true
+console.log('Execution time:', result2.executionTime); // Much faster
+```
+
+### Cache Management
+
+```typescript
+// Get cache statistics
+const stats = translator.getCacheStats();
+console.log('Cache hit rate:', stats.hitRate);
+console.log('Total entries:', stats.totalEntries);
+
+// Clear cache
+translator.clearCache();
+
+// Disable/enable cache dynamically
+translator.disableCache();
+translator.enableCache();
+
+// Get cache status
+const isEnabled = translator.isCacheEnabled();
+```
+
+### API Integration Best Practices
+
+For optimal cache performance in APIs, use a global instance:
+
+```typescript
+// api-instance.ts
+import { CyberMySQLOpenAI } from 'cyber-mysql-openai';
+
+export const translator = new CyberMySQLOpenAI({
+  // ... configuration
+  cache: { enabled: true, maxSize: 2000 }
+});
+
+// api-routes.ts
+import { translator } from './api-instance';
+
+app.get('/query', async (req, res) => {
+  const result = await translator.query(req.body.question);
+  res.json({
+    ...result,
+    cached: result.fromCache,
+    responseTime: result.executionTime
+  });
+});
+```
+
+⚠️ **Important**: The cache persists across different requests and users. Ensure this behavior is appropriate for your use case. For user-specific data, consider implementing cache invalidation strategies.
+
+For more cache examples and advanced usage, see [docs/cache-examples.md](docs/cache-examples.md).
+
+## �📋 API
 
 ### CyberMySQLOpenAI
 
@@ -119,6 +211,23 @@ Changes the response language dynamically.
 
 #### `getLanguage(): 'en' | 'es'`
 Returns the current language setting.
+
+### Cache Methods
+
+#### `getCacheStats(): CacheStats`
+Returns cache performance statistics including hit rate, memory usage, and entry counts.
+
+#### `clearCache(): void`
+Removes all entries from the cache.
+
+#### `enableCache(): void`
+Enables the cache system.
+
+#### `disableCache(): void`
+Disables the cache system.
+
+#### `isCacheEnabled(): boolean`
+Returns whether the cache is currently enabled.
 
 ### Natural Response Options
 

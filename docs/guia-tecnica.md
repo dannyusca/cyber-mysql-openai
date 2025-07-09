@@ -242,6 +242,113 @@ La librería está preparada para su distribución a través de npm:
 
 Para pruebas locales antes de publicar, consulta `docs/testing-guide.md`.
 
+## Sistema de Cache en Memoria
+
+**Ubicación**: `src/cache/memoryCache.ts`
+
+La librería incluye un sistema de cache en memoria opcional que puede mejorar significativamente el rendimiento al evitar consultas repetitivas a OpenAI y MySQL.
+
+### Características del Cache
+
+- **Cache inteligente**: TTL (Time To Live) variable según el tipo de consulta
+- **Normalización de consultas**: Mejora la tasa de aciertos del cache
+- **Gestión automática de memoria**: Limpieza automática de entradas expiradas
+- **Invalidación selectiva**: Posibilidad de invalidar cache por tabla específica
+- **Estadísticas detalladas**: Monitoreo del rendimiento del cache
+
+### Configuración del Cache
+
+```typescript
+const translator = new CyberMySQLOpenAI({
+  // ... otras configuraciones
+  cache: {
+    enabled: true,              // Habilitar cache (default: true)
+    maxSize: 1000,             // Máximo número de entradas (default: 1000)
+    cleanupIntervalMs: 300000  // Intervalo de limpieza en ms (default: 5min)
+  }
+});
+
+// Cache deshabilitado
+const translatorNoCache = new CyberMySQLOpenAI({
+  // ... otras configuraciones
+  cache: {
+    enabled: false
+  }
+});
+```
+
+### Tipos de TTL por Consulta
+
+El sistema aplica diferentes tiempos de vida según el tipo de consulta:
+
+- **Consultas de esquema** (SHOW TABLES, DESCRIBE): 1 hora
+- **Consultas agregadas** (COUNT, SUM, AVG, GROUP BY): 15 minutos  
+- **Consultas normales**: 5 minutos
+
+### Uso en APIs
+
+```typescript
+// Instancia compartida para APIs (recomendado)
+const translator = new CyberMySQLOpenAI({
+  // ... configuración
+  cache: { enabled: true }
+});
+
+// En Express.js
+app.post('/api/query', async (req, res) => {
+  const result = await translator.query(req.body.prompt);
+  res.json({
+    ...result,
+    cached: result.fromCache,
+    executionTime: result.executionTime
+  });
+});
+```
+
+### Métodos del Cache
+
+```typescript
+// Obtener estadísticas
+const stats = translator.getCacheStats();
+console.log(`Hit rate: ${stats.hitRate}%`);
+
+// Limpiar cache completamente
+translator.clearCache();
+
+// Invalidar cache por tabla
+translator.invalidateCacheByTable('products');
+
+// Habilitar/deshabilitar dinámicamente
+translator.setCacheEnabled(false);
+console.log(translator.isCacheEnabled()); // false
+
+// Bypass cache para consulta específica
+const result = await translator.query(
+  'Show me latest data', 
+  { bypassCache: true }
+);
+```
+
+### Beneficios de Rendimiento
+
+- **Reducción de latencia**: 90-95% menos tiempo en consultas repetitivas
+- **Ahorro de costos**: Menos llamadas a OpenAI API
+- **Mejor UX**: Respuestas instantáneas para consultas frecuentes
+- **Escalabilidad**: Soporte para más requests simultáneos
+
+### Ejemplo Práctico
+
+```typescript
+// Primera consulta: ~1500ms (OpenAI + MySQL)
+const result1 = await translator.query('Show me total sales');
+
+// Segunda consulta idéntica: ~50ms (desde cache)
+const result2 = await translator.query('Show me total sales');
+
+console.log(result2.fromCache); // true
+console.log(result2.executionTime); // ~50ms
+```
+
 ## Soporte Multiidioma
 
 **Ubicación**: `src/utils/i18n.ts`

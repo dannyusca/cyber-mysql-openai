@@ -17,6 +17,13 @@ export interface OpenAIConfig {
   model: string;
 }
 
+// Configuración del sistema de cache
+export interface CacheConfig {
+  enabled?: boolean; // Habilitar/deshabilitar cache (default: true)
+  maxSize?: number; // Máximo número de entradas (default: 1000)
+  cleanupIntervalMs?: number; // Intervalo de limpieza en ms (default: 300000 = 5min)
+}
+
 // Configuración principal de CyberMySQLOpenAI
 export interface CyberMySQLOpenAIConfig {
   database: DBConfig;
@@ -26,6 +33,7 @@ export interface CyberMySQLOpenAIConfig {
   logDirectory?: string;
   logEnabled?: boolean;
   language?: 'es' | 'en'; // Idioma para respuestas (español o inglés)
+  cache?: CacheConfig; // Configuración del sistema de cache
 }
 
 // Resultado de una traducción de lenguaje natural a SQL
@@ -37,6 +45,8 @@ export interface TranslationResult {
   success: boolean;
   naturalResponse?: string;
   detailedResponse?: string;
+  executionTime?: number; // Tiempo de ejecución en ms
+  fromCache?: boolean; // Indica si el resultado vino del cache
 }
 
 // Resultado de una ejecución SQL directa
@@ -46,6 +56,8 @@ export interface SQLResult {
   success: boolean;
   naturalResponse?: string;
   detailedResponse?: string;
+  executionTime?: number; // Tiempo de ejecución en ms
+  fromCache?: boolean; // Indica si el resultado vino del cache
 }
 
 // Reflexión del agente
@@ -61,4 +73,16 @@ export type LogLevel = 'error' | 'warn' | 'info' | 'debug' | 'none';
 // Opciones para generar respuestas naturales
 export interface NaturalResponseOptions {
   detailed?: boolean;
+  bypassCache?: boolean; // Opcional: ignorar cache y forzar nueva consulta
+}
+
+// Estadísticas del cache
+export interface CacheStats {
+  totalEntries: number;
+  hits: number;
+  misses: number;
+  hitRate: number;
+  memoryUsage: number;
+  oldestEntry: number;
+  newestEntry: number;
 }
