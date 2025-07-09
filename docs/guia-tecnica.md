@@ -238,7 +238,7 @@ La librería está preparada para su distribución a través de npm:
 1. Incrementa la versión en `package.json`
 2. Ejecuta las pruebas: `npm test`
 3. Construye la librería: `npm run build`
-4. Publica en npm: `npm publish`
+4. Publica en npm: `npm publish --access public   `
 
 Para pruebas locales antes de publicar, consulta `docs/testing-guide.md`.
 

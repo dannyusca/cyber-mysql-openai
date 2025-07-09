@@ -1,6 +1,6 @@
 {
   "name": "cyber-mysql-openai",
-  "version": "0.1.8",
+  "version": "0.1.9",
   "description": "Intelligent natural language to SQL translator with self-correction capabilities using OpenAI and MySQL",
   "main": "./dist/index.js",
   "module": "./dist/index.js",
