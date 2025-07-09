@@ -174,7 +174,7 @@ console.log(spanishResult.naturalResponse); // Response in Spanish
 
 ## 🧪 Project Status
 
-This project is currently in **beta phase** of development. We are actively working to improve its functionality and stability.
+This project is currently in **stable version** and under active development. We continue improving and adding new features based on community feedback.
 
 ### Current Limitations
 - Handling very complex queries may require multiple iterations
@@ -184,7 +184,6 @@ This project is currently in **beta phase** of development. We are actively work
 ### Upcoming Improvements
 - Performance optimization for large databases
 - Support for more SQL dialects
-- Expanded multi-language support (additional languages)
 - Improvements in complex query interpretation
 - Expanded documentation and usage examples
 

@@ -174,7 +174,7 @@ console.log('Respuesta detallada:', detailedResult.detailedResponse);
 
 ## 🧪 Estado del proyecto
 
-Este proyecto se encuentra actualmente en **fase beta** de desarrollo. Estamos trabajando activamente para mejorar su funcionalidad y estabilidad.
+Este proyecto se encuentra actualmente en **versión estable** y en desarrollo activo. Continuamos mejorando y añadiendo nuevas características basadas en feedback de la comunidad.
 
 ### Limitaciones actuales
 - El manejo de consultas muy complejas puede requerir múltiples iteraciones
@@ -184,7 +184,6 @@ Este proyecto se encuentra actualmente en **fase beta** de desarrollo. Estamos t
 ### Próximas mejoras
 - Optimización del rendimiento en bases de datos grandes
 - Soporte para más dialectos SQL
-- Ampliación del soporte multiidioma (más idiomas)
 - Mejoras en la interpretación de consultas complejas
 - Ampliación de la documentación y ejemplos de uso
 
