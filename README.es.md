@@ -1,306 +1,327 @@
-# Cyber-MySQL-OpenAI: Traductor de lenguaje natural a SQL para Node.js
+# Cyber-MySQL-OpenAI
 
-Cyber-MySQL-OpenAI es una potente librería para Node.js que traduce consultas en lenguaje natural a SQL válido, ejecuta las consultas en MySQL, y proporciona resultados con explicaciones en lenguaje natural utilizando la tecnología de OpenAI.
+**Traductor inteligente de lenguaje natural a SQL para Node.js**
 
-## 🚀 Características
+Cyber-MySQL-OpenAI es una librería para Node.js que traduce consultas en lenguaje natural a SQL válido, ejecuta las consultas en MySQL y devuelve los resultados acompañados de explicaciones comprensibles, todo impulsado por OpenAI.
 
-- **Traducción de lenguaje natural a SQL**: Convierte peticiones en lenguaje natural a consultas SQL válidas
-- **Ejecución automática**: Ejecuta las consultas generadas directamente en tu base de datos MySQL
-- **Corrección autónoma de errores**: Detecta y corrige errores en las consultas generadas
-- **Explicaciones en lenguaje natural**: Traduce los resultados técnicos a explicaciones amigables
-- **Soporte multiidioma**: Disponible en español e inglés con cambio dinámico de idioma
-- **Cache inteligente en memoria**: Sistema de cache opcional de alto rendimiento para optimización de consultas
-- **Soporte para TypeScript**: Tipos completos para una mejor experiencia de desarrollo
-- **Altamente configurable**: Adapta la librería a tus necesidades específicas
-- **Logging avanzado**: Sistema de logging detallado para diagnóstico y auditoría
+[English documentation](README.md)
 
-## 📦 Instalación
+---
+
+## Tabla de Contenidos
+
+- [Características](#características)
+- [Instalación](#instalación)
+- [Requisitos del Sistema](#requisitos-del-sistema)
+- [Uso Básico](#uso-básico)
+- [Opciones de Configuración](#opciones-de-configuración)
+- [Sistema de Cache](#sistema-de-cache)
+- [Soporte Multiidioma](#soporte-multiidioma)
+- [Referencia de API](#referencia-de-api)
+- [Solución de Problemas](#solución-de-problemas)
+- [Estado del Proyecto](#estado-del-proyecto)
+- [Licencia](#licencia)
+
+---
+
+## Características
+
+- **Traducción de lenguaje natural a SQL** — Convierte preguntas en texto plano a consultas SQL válidas
+- **Ejecución automática** — Ejecuta las consultas generadas directamente en tu base de datos MySQL
+- **Corrección autónoma de errores** — Detecta y corrige consultas fallidas de forma autónoma (hasta 3 intentos de reflexión)
+- **Explicaciones en lenguaje natural** — Traduce los resultados técnicos a respuestas comprensibles
+- **Soporte multiidioma** — Español e inglés con cambio dinámico en tiempo de ejecución
+- **Cache en memoria** — Capa de caché opcional de alto rendimiento con TTL variable y limpieza automática
+- **Soporte completo para TypeScript** — Definiciones de tipos completas para una experiencia de desarrollo fluida
+- **Altamente configurable** — Ajusta logging, cache, idioma y modelo según tus necesidades
+- **Logging avanzado** — Sistema de logging estructurado con seguimiento de uso de tokens y auditoría de prompts/respuestas
+
+---
+
+## Instalación
 
 ```bash
 npm install cyber-mysql-openai
 ```
 
-## 🔧 Requisitos del sistema
+---
 
-- **Node.js**: Desarrollado y probado con Node.js v22.15.0
-- **Compatibilidad**: Compatible con Node.js v16.x o superior. Algunas dependencias pueden requerir características de ES2021
-- **Base de datos**: MySQL/MariaDB
-- **Credenciales de API**: Se requiere una clave API de OpenAI
+## Requisitos del Sistema
 
-## 🔧 Uso básico
+| Requisito         | Detalles                                               |
+| ----------------- | ------------------------------------------------------ |
+| **Node.js**       | v16.x o superior (desarrollado y probado con v22.15.0) |
+| **Base de datos** | MySQL o MariaDB                                        |
+| **Clave API**     | Una clave API válida de OpenAI                         |
+
+---
+
+## Uso Básico
 
 ```typescript
-import { CyberMySQLOpenAI } from 'cyber-mysql-openai';
-import 'dotenv/config';
+import { CyberMySQLOpenAI } from "cyber-mysql-openai";
+import "dotenv/config";
 
-// Inicializar con configuración
 const translator = new CyberMySQLOpenAI({
   database: {
-    host: process.env.DB_HOST || 'localhost',
+    host: process.env.DB_HOST || "localhost",
     port: 3306,
-    user: process.env.DB_USER || '',
-    password: process.env.DB_PASSWORD || '',
-    database: process.env.DB_DATABASE || '',
-    ssl: false
+    user: process.env.DB_USER || "",
+    password: process.env.DB_PASSWORD || "",
+    database: process.env.DB_DATABASE || "",
+    ssl: false,
   },
   openai: {
-    apiKey: process.env.OPENAI_API_KEY || '',
-    model: 'gpt-4'
+    apiKey: process.env.OPENAI_API_KEY || "",
+    model: "gpt-4",
   },
-  language: 'es'
+  language: "es",
 });
 
-// Realizar una consulta en lenguaje natural
 async function main() {
   try {
-    const result = await translator.query('¿Cuál fue el producto más vendido el mes pasado?');
-    
-    console.log('SQL generado:', result.sql);
-    console.log('Resultados:', result.results);
-    console.log('Explicación:', result.naturalResponse);
-    
-    // Cerrar la conexión
+    const result = await translator.query(
+      "¿Cuál fue el producto más vendido el mes pasado?",
+    );
+
+    console.log("SQL generado:", result.sql);
+    console.log("Resultados:", result.results);
+    console.log("Explicación:", result.naturalResponse);
+
     await translator.close();
   } catch (error) {
-    console.error('Error:', error);
+    console.error("Error:", error);
   }
 }
 
 main();
 ```
 
-## ⚙️ Opciones de configuración
+---
+
+## Opciones de Configuración
 
 ```typescript
 const translator = new CyberMySQLOpenAI({
-  // Configuración de la base de datos
+  // Conexión a la base de datos
   database: {
-    host: 'localhost',
+    host: "localhost",
     port: 3306,
-    user: 'username',
-    password: 'password',
-    database: 'my_database',
+    user: "username",
+    password: "password",
+    database: "my_database",
     ssl: false,
-    socketPath: '/path/to/mysql.sock' // Opcional
+    socketPath: "/path/to/mysql.sock", // Opcional
   },
-  
+
   // Configuración de OpenAI
   openai: {
-    apiKey: 'tu_clave_api',
-    model: 'gpt-4' // o 'gpt-3.5-turbo', etc.
+    apiKey: "tu_clave_api",
+    model: "gpt-4", // También soporta 'gpt-3.5-turbo', etc.
   },
-  
+
   // Configuración del cache (opcional)
   cache: {
-    enabled: true,        // Habilitar/deshabilitar cache
-    maxSize: 1000,        // Máximo de entradas en cache
-    defaultTTL: 300000,   // TTL por defecto en milisegundos (5 minutos)
-    cleanupInterval: 300000 // Intervalo de limpieza en milisegundos
+    enabled: true, // Habilitar/deshabilitar cache
+    maxSize: 1000, // Máximo de entradas en cache
+    defaultTTL: 300000, // TTL por defecto en milisegundos (5 min)
+    cleanupInterval: 300000, // Intervalo de limpieza en milisegundos
   },
-  
-  // Configuración adicional
-  maxReflections: 3, // Número máximo de intentos de corrección
-  logLevel: 'info', // 'error', 'warn', 'info', 'debug' o 'none' para desactivar
-  logDirectory: './logs', // Directorio para logs
-  logEnabled: true, // Establecer en false para desactivar completamente los logs
-  language: 'es' // Idioma de respuestas: 'es' (Español) o 'en' (Inglés)
+
+  // Configuración general
+  maxReflections: 3, // Máximo de intentos de corrección ante errores SQL
+  logLevel: "info", // 'error' | 'warn' | 'info' | 'debug' | 'none'
+  logDirectory: "./logs", // Directorio para archivos de log
+  logEnabled: true, // Establecer en false para desactivar logs
+  language: "es", // 'es' (Español) o 'en' (Inglés)
 });
 ```
 
-## 🚀 Sistema de Cache Inteligente
+---
 
-Cyber-MySQL-OpenAI incluye un sistema de cache en memoria opcional de alto rendimiento que mejora significativamente los tiempos de respuesta para consultas repetidas.
+## Sistema de Cache
 
-### Características del Cache
+Cyber-MySQL-OpenAI incluye un sistema de cache en memoria opcional que mejora significativamente los tiempos de respuesta para consultas repetidas o similares.
 
-- **Normalización inteligente de consultas**: Normaliza automáticamente las consultas SQL para maximizar los aciertos de cache
-- **TTL variable**: Tiempo de vida dinámico basado en la complejidad de la consulta y el tamaño del resultado
-- **Limpieza automática**: Eliminación periódica de entradas expiradas
-- **Estadísticas y monitoreo**: Métricas de rendimiento del cache en tiempo real
-- **Optimización de memoria**: Uso eficiente de memoria con límites configurables
+### Funcionamiento
+
+- **Normalización de consultas** — Las consultas se normalizan antes de buscar en cache para maximizar aciertos
+- **TTL variable** — El tiempo de vida se determina dinámicamente según el tipo de consulta:
+  - Consultas de esquema/metadatos: 1 hora
+  - Consultas agregadas (COUNT, SUM, AVG, GROUP BY): 15 minutos
+  - Consultas simples: 5 minutos
+- **Limpieza automática** — Las entradas expiradas se eliminan periódicamente
+- **Métricas de rendimiento** — Estadísticas en tiempo real incluyendo tasa de aciertos y uso de memoria
 
 ### Uso Básico del Cache
 
 ```typescript
-// Habilitar cache durante la inicialización
 const translator = new CyberMySQLOpenAI({
-  // ... configuración de base de datos y OpenAI
+  // ... configuración de BD y OpenAI
   cache: {
     enabled: true,
     maxSize: 1000,
-    defaultTTL: 300000, // 5 minutos
-    cleanupInterval: 300000
-  }
+    defaultTTL: 300000,
+    cleanupInterval: 300000,
+  },
 });
 
-// Las consultas usarán automáticamente el cache
-const result1 = await translator.query('Muéstrame todos los usuarios'); // Consulta a base de datos
-const result2 = await translator.query('Muéstrame todos los usuarios'); // ¡Cache hit!
+const result1 = await translator.query("Muéstrame todos los usuarios"); // Consulta a la BD
+const result2 = await translator.query("Muéstrame todos los usuarios"); // Resultado desde cache
 
-console.log('Desde cache:', result2.fromCache); // true
-console.log('Tiempo de ejecución:', result2.executionTime); // Mucho más rápido
+console.log("Desde cache:", result2.fromCache); // true
+console.log("Tiempo de ejecución:", result2.executionTime); // Significativamente más rápido
 ```
 
 ### Gestión del Cache
 
 ```typescript
-// Obtener estadísticas del cache
+// Obtener estadísticas de rendimiento
 const stats = translator.getCacheStats();
-console.log('Tasa de aciertos del cache:', stats.hitRate);
-console.log('Total de entradas:', stats.totalEntries);
+console.log("Tasa de aciertos:", stats.hitRate);
+console.log("Entradas:", stats.totalEntries);
 
-// Limpiar cache
+// Limpiar todas las entradas
 translator.clearCache();
 
-// Deshabilitar/habilitar cache dinámicamente
+// Activar/desactivar cache en tiempo de ejecución
 translator.disableCache();
 translator.enableCache();
-
-// Obtener estado del cache
-const isEnabled = translator.isCacheEnabled();
+console.log("Cache activo:", translator.isCacheEnabled());
 ```
 
 ### Mejores Prácticas para Integración en APIs
 
-Para un rendimiento óptimo del cache en APIs, usa una instancia global:
+Usa una instancia global compartida para maximizar la efectividad del cache entre peticiones:
 
 ```typescript
 // api-instance.ts
-import { CyberMySQLOpenAI } from 'cyber-mysql-openai';
+import { CyberMySQLOpenAI } from "cyber-mysql-openai";
 
 export const translator = new CyberMySQLOpenAI({
   // ... configuración
-  cache: { enabled: true, maxSize: 2000 }
+  cache: { enabled: true, maxSize: 2000 },
 });
 
 // api-routes.ts
-import { translator } from './api-instance';
+import { translator } from "./api-instance";
 
-app.get('/query', async (req, res) => {
+app.get("/query", async (req, res) => {
   const result = await translator.query(req.body.question);
   res.json({
     ...result,
     cached: result.fromCache,
-    responseTime: result.executionTime
+    responseTime: result.executionTime,
   });
 });
 ```
 
-⚠️ **Importante**: El cache persiste entre diferentes requests y usuarios. Asegúrate de que este comportamiento sea apropiado para tu caso de uso. Para datos específicos de usuario, considera implementar estrategias de invalidación de cache.
+> **Nota:** El cache se comparte entre todas las peticiones y usuarios. Asegúrate de que este comportamiento sea apropiado para tu caso de uso. Para datos específicos por usuario, implementa estrategias de invalidación de cache.
 
-Para más ejemplos de cache y uso avanzado, ver [docs/cache-examples.md](docs/cache-examples.md).
+Para más ejemplos, consulta [docs/cache-examples.md](docs/cache-examples.md).
 
-## 🌐 Soporte Multiidioma
+---
 
-La librería soporta múltiples idiomas para respuestas y mensajes de error. Actualmente disponible:
+## Soporte Multiidioma
 
-- **Español (`es`)**: Idioma por defecto para usuarios hispanohablantes
-- **Inglés (`en`)**: Soporte completo con mensajes localizados
+La librería soporta español e inglés para todas las respuestas, mensajes de error y prompts de OpenAI. El idioma se puede configurar al inicializar o cambiar dinámicamente en tiempo de ejecución.
 
-### Configuración de Idioma
+### Configuración
 
 ```typescript
-// Establecer idioma durante la inicialización
+// Establecer durante la inicialización
 const translator = new CyberMySQLOpenAI({
   // ... otra configuración
-  language: 'es' // 'es' para Español, 'en' para Inglés
+  language: "es", // 'es' para Español, 'en' para Inglés
 });
 
-// Cambiar idioma dinámicamente
-translator.setLanguage('en');
-console.log('Idioma actual:', translator.getLanguage());
+// Cambiar en tiempo de ejecución
+translator.setLanguage("en");
+console.log("Idioma actual:", translator.getLanguage());
 ```
 
-### Características Específicas por Idioma
+### Qué se Localiza
 
-- **Mensajes de error**: Todos los mensajes de error están localizados
-- **Prompts de OpenAI**: Los prompts enviados a OpenAI están en el idioma seleccionado
-- **Respuestas naturales**: Las explicaciones se generan en el idioma configurado
-- **Etiquetas de interfaz**: Todo el texto de la interfaz está traducido
+- Mensajes de error
+- Prompts enviados a OpenAI
+- Explicaciones en lenguaje natural
+- Etiquetas de interfaz y texto de estado
 
-### Ejemplo: Cambio Dinámico de Idioma
+### Ejemplo: Cambio Dinámico
 
 ```typescript
-// Consulta en español
-translator.setLanguage('es');
-const resultadoEspanol = await translator.query('¿Cuáles son los 5 productos principales?');
+translator.setLanguage("es");
+const resultadoEspanol = await translator.query(
+  "¿Cuáles son los 5 productos principales?",
+);
 console.log(resultadoEspanol.naturalResponse); // Respuesta en español
 
-// Cambiar a inglés
-translator.setLanguage('en');
-const englishResult = await translator.query('What are the top 5 products?');
+translator.setLanguage("en");
+const englishResult = await translator.query("What are the top 5 products?");
 console.log(englishResult.naturalResponse); // Respuesta en inglés
 ```
 
-## 📋 API
+---
+
+## Referencia de API
 
 ### CyberMySQLOpenAI
 
-#### `constructor(config: CyberMySQLOpenAIConfig)`
-Inicializa una nueva instancia de CyberMySQLOpenAI con la configuración proporcionada.
-
-#### `async query(prompt: string, options?: NaturalResponseOptions): Promise<TranslationResult>`
-Procesa una consulta en lenguaje natural, la traduce a SQL, y ejecuta la consulta.
-
-#### `async executeSQL(sql: string, options?: NaturalResponseOptions): Promise<SQLResult>`
-Ejecuta una consulta SQL directamente sin traducción.
-
-#### `async close(): Promise<void>`
-Cierra las conexiones a la base de datos.
-
-#### `setLanguage(language: 'es' | 'en'): void`
-Cambia el idioma de respuesta dinámicamente.
-
-#### `getLanguage(): 'es' | 'en'`
-Devuelve la configuración de idioma actual.
+| Método                      | Descripción                                                                        |
+| --------------------------- | ---------------------------------------------------------------------------------- |
+| `constructor(config)`       | Crea una nueva instancia con la configuración proporcionada                        |
+| `query(prompt, options?)`   | Traduce una pregunta en lenguaje natural a SQL, la ejecuta y devuelve el resultado |
+| `executeSQL(sql, options?)` | Ejecuta una consulta SQL directamente (sin traducción)                             |
+| `close()`                   | Cierra todas las conexiones a la base de datos                                     |
+| `setLanguage(lang)`         | Establece el idioma de respuesta (`'es'` o `'en'`)                                 |
+| `getLanguage()`             | Devuelve el idioma configurado actualmente                                         |
 
 ### Métodos del Cache
 
-#### `getCacheStats(): CacheStats`
-Devuelve estadísticas de rendimiento del cache incluyendo tasa de aciertos, uso de memoria y conteo de entradas.
+| Método                              | Descripción                                                                            |
+| ----------------------------------- | -------------------------------------------------------------------------------------- |
+| `getCacheStats()`                   | Devuelve estadísticas del cache (tasa de aciertos, uso de memoria, conteo de entradas) |
+| `clearCache()`                      | Elimina todas las entradas del cache                                                   |
+| `enableCache()`                     | Habilita el sistema de cache                                                           |
+| `disableCache()`                    | Deshabilita el sistema de cache                                                        |
+| `isCacheEnabled()`                  | Indica si el cache está activo actualmente                                             |
+| `invalidateCacheByTable(tableName)` | Elimina entradas del cache relacionadas con una tabla específica                       |
 
-#### `clearCache(): void`
-Elimina todas las entradas del cache.
-
-#### `enableCache(): void`
-Habilita el sistema de cache.
-
-#### `disableCache(): void`
-Deshabilita el sistema de cache.
-
-#### `isCacheEnabled(): boolean`
-Devuelve si el cache está actualmente habilitado.
-
-### Opciones de respuesta natural
+### Opciones de Consulta
 
 ```typescript
-// Para obtener una respuesta detallada
-const detailedResult = await translator.query('¿Cuál fue el mes con más ventas?', { detailed: true });
+const result = await translator.query("¿Cuál fue el mes con más ventas?", {
+  detailed: true, // Solicitar una respuesta analítica detallada
+  bypassCache: true, // Omitir cache y forzar una consulta nueva
+});
 
-console.log('Respuesta simple:', detailedResult.naturalResponse);
-console.log('Respuesta detallada:', detailedResult.detailedResponse);
+console.log("Respuesta simple:", result.naturalResponse);
+console.log("Respuesta detallada:", result.detailedResponse);
 ```
 
-## 🧪 Estado del proyecto
+### Tipos de Respuesta
 
-Este proyecto se encuentra actualmente en **versión estable** y en desarrollo activo. Continuamos mejorando y añadiendo nuevas características basadas en feedback de la comunidad.
+**TranslationResult** (devuelto por `query`):
 
-### Limitaciones actuales
-- El manejo de consultas muy complejas puede requerir múltiples iteraciones
-- Algunas construcciones SQL avanzadas pueden no ser interpretadas correctamente
-- El rendimiento puede variar dependiendo de la complejidad de la base de datos
+| Campo              | Tipo           | Descripción                                      |
+| ------------------ | -------------- | ------------------------------------------------ |
+| `sql`              | `string`       | La consulta SQL generada                         |
+| `results`          | `any[]`        | Resultados de la consulta desde la base de datos |
+| `reflections`      | `Reflection[]` | Historial de correcciones de error (si hubo)     |
+| `attempts`         | `number`       | Total de intentos de ejecución                   |
+| `success`          | `boolean`      | Si la consulta fue exitosa                       |
+| `naturalResponse`  | `string`       | Explicación comprensible                         |
+| `detailedResponse` | `string`       | Análisis detallado (cuando `detailed: true`)     |
+| `executionTime`    | `number`       | Tiempo total de ejecución en milisegundos        |
+| `fromCache`        | `boolean`      | Si el resultado se sirvió desde el cache         |
 
-### Próximas mejoras
-- Optimización del rendimiento en bases de datos grandes
-- Soporte para más dialectos SQL
-- Mejoras en la interpretación de consultas complejas
-- Ampliación de la documentación y ejemplos de uso
+---
 
-## 🔍 Solución de problemas comunes
+## Solución de Problemas
 
-### Configuración con Nodemon
+### Reinicios de Nodemon
 
-Si estás utilizando Nodemon en tu proyecto y experimentas reinicios constantes debido a los archivos de logs que genera esta librería, añade la siguiente configuración a tu `package.json` o crea un archivo `nodemon.json`:
+Si Nodemon se reinicia constantemente por la generación de archivos de log, agrega esto a tu `package.json` o `nodemon.json`:
 
 ```json
 {
@@ -310,44 +331,47 @@ Si estás utilizando Nodemon en tu proyecto y experimentas reinicios constantes 
 }
 ```
 
-Esta configuración evitará que Nodemon reinicie tu aplicación cuando se generen o actualicen archivos de logs.
+### Problemas con Respuestas Detalladas
 
-### Problemas con respuestas detalladas
+1. Actualiza a la última versión: `npm update cyber-mysql-openai`
+2. Verifica que tu clave API de OpenAI tenga créditos suficientes
+3. Reduce la verbosidad del log con `logLevel: 'warn'` o `logLevel: 'error'`
 
-Si experimentas problemas al usar `detailed: true` en tus consultas:
-
-1. Asegúrate de tener una versión reciente de la librería: `npm update cyber-mysql-openai`
-2. Verifica que tu API key de OpenAI tenga suficientes créditos y permisos
-3. Considera usar un nivel de log menos detallado configurando `logLevel: 'warn'` o `logLevel: 'error'`
-4. Si los problemas persisten, puedes desactivar temporalmente los logs detallados
-
-### Configuración de logs
-
-Para mejorar el rendimiento y evitar problemas con los logs, puedes configurar diferentes niveles de logging:
+### Configuración de Logs
 
 ```typescript
-// Desactivar completamente los logs
+// Desactivar todos los logs
 const translator = new CyberMySQLOpenAI({
-  // ... otras configuraciones
-  logEnabled: false
+  logEnabled: false,
 });
 
-// Mostrar solo errores críticos
+// Registrar solo errores
 const translator = new CyberMySQLOpenAI({
-  // ... otras configuraciones
-  logLevel: 'error'
-});
-
-// Registrar solo en consola sin archivos
-const translator = new CyberMySQLOpenAI({
-  // ... otras configuraciones
-  logLevel: 'none',  // No crear archivos de log
-  // o utilizar logEnabled: false para desactivar completamente
+  logLevel: "error",
 });
 ```
 
-Esta configuración es especialmente útil en entornos donde se utiliza nodemon u otras herramientas de recarga automática, ya que la generación constante de archivos de log puede causar reinicios innecesarios.
+---
 
-## 📄 Licencia
+## Estado del Proyecto
+
+Este proyecto está en **versión estable** y en desarrollo activo. Las contribuciones y comentarios son bienvenidos.
+
+### Limitaciones Actuales
+
+- Las consultas muy complejas pueden requerir múltiples iteraciones de corrección
+- Algunas construcciones SQL avanzadas pueden no ser interpretadas correctamente
+- El rendimiento depende de la complejidad del esquema de la base de datos y la latencia del modelo de OpenAI
+
+### Hoja de Ruta
+
+- Optimización de rendimiento para esquemas de base de datos grandes
+- Soporte para dialectos SQL adicionales
+- Mejora en el manejo de consultas complejas multi-tabla
+- Ampliación de documentación y ejemplos de uso
+
+---
+
+## Licencia
 
 MIT
