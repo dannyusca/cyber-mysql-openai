@@ -14,7 +14,7 @@ Cyber-MySQL-OpenAI is a powerful Node.js library that translates natural languag
 - [Installation](#installation)
 - [System Requirements](#system-requirements)
 - [Basic Usage](#basic-usage)
-- [Intelligence Features (v0.2.0)](#intelligence-features)
+- [Intelligence Features (v0.3.0)](#intelligence-features-v030)
 - [Configuration Options](#configuration-options)
 - [Cache System](#cache-system)
 - [Multi-Language Support](#multi-language-support)
@@ -40,6 +40,12 @@ Cyber-MySQL-OpenAI is a powerful Node.js library that translates natural languag
 - **In-memory cache** — Optional high-performance caching layer with variable TTL and automatic cleanup
 - **Full TypeScript support** — Complete type definitions for a seamless developer experience
 - **Highly configurable** — Adjust logging, caching, language, and model settings to fit your needs
+- **Enhanced Intelligence (v0.3.0)** — Improved prompts with SQL optimization rules, aliases, and better disambiguation
+- **Custom Instructions** — Inject your own business rules and response styles into the AI
+- **Query Validation Layer** — Automatically checks generated SQL for safety, table existence, and cartesian products
+- **Schema Caching** — Configurable TTL to reduce database load and improve latency
+- **Token Usage Tracking** — Detailed token counts and estimated cost per query
+- **Query History** — In-memory log of executed queries with performance statistics
 - **Advanced logging** — Structured logging system with token usage tracking and prompt/response audit trails
 
 ---
@@ -115,7 +121,7 @@ Cyber-MySQL-OpenAI can be configured with business context to dramatically impro
 
 Provide the AI with domain-specific knowledge about your database:
 
-```typescript
+````typescript
 import { CyberMySQLOpenAI, SchemaContext } from "cyber-mysql-openai";
 
 const context: SchemaContext = {
@@ -146,9 +152,95 @@ const translator = new CyberMySQLOpenAI({
   openai: {
     /* ... */
   },
-  context, // Injected into every prompt
+  context,
 });
 ```
+
+---
+
+## Intelligence Features (v0.3.0)
+
+### 1. Custom Instructions & Response Style
+
+You can now inject specific business rules and control the personality of the AI:
+
+```typescript
+const translator = new CyberMySQLOpenAI({
+  // ...
+  context: {
+    businessDescription: "E-commerce platform",
+    // v0.3.0: Custom rules
+    customInstructions: [
+      "Always exclude soft-deleted records (deleted_at IS NOT NULL)",
+      "When asked for 'revenue', use the sum of total_amount from orders table",
+    ],
+    // v0.3.0: Response style ('concise', 'detailed', 'technical')
+    responseStyle: "concise",
+  },
+});
+````
+
+### 2. Query Validation
+
+Every generated query is automatically validated before execution. The system checks for:
+
+- **Dangerous operations**: Only `SELECT` statements are allowed; `UPDATE`, `DROP`, etc., are blocked.
+- **Schema validation**: Checks for non-existent tables or columns (best-effort).
+- **Cartesian products**: Warns about potential cartesian products due to missing JOIN conditions.
+- **Performance checks**: Identifies missing `LIMIT` clauses on potentially large result sets.
+
+### 3. Schema Caching
+
+Reduce latency and database load by caching schema definitions:
+
+```typescript
+const translator = new CyberMySQLOpenAI({
+  // ...
+  schemaTTL: 600000, // Cache schema for 10 minutes (default: 5 min)
+});
+
+// Force refresh if schema changes
+translator.refreshSchema();
+```
+
+### 4. Query History & Stats
+
+Track performance and usage during the session:
+
+```typescript
+const stats = translator.getQueryStats();
+console.log(stats);
+// {
+//   totalQueries: 10,
+//   successfulQueries: 9,
+//   averageExecutionTime: 450ms,
+//   totalTokensUsed: 5200
+// }
+
+// Get last 5 queries
+const history = translator.getQueryHistory(5);
+```
+
+### 5. Token Usage & Cost Estimation
+
+Each result now includes detailed token usage and estimated cost:
+
+```typescript
+const result = await translator.query("Sales count?");
+console.log(result.tokenUsage);
+// {
+//   promptTokens: 500,
+//   completionTokens: 50,
+//   totalTokens: 550,
+//   estimatedCost: 0.0015 // USD (based on current model pricing)
+// }
+```
+
+---
+
+### Foreign Key Relationships
+
+The library automatically detects FK relationships from your database's `information_schema` and includes them in the AI prompt. This enables the model to construct accurate JOINs without you having to describe table relationships manually.
 
 ### Few-Shot Examples
 

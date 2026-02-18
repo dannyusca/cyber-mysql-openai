@@ -14,7 +14,7 @@ Cyber-MySQL-OpenAI es una librería para Node.js que traduce consultas en lengua
 - [Instalación](#instalación)
 - [Requisitos del Sistema](#requisitos-del-sistema)
 - [Uso Básico](#uso-básico)
-- [Funciones de Inteligencia (v0.2.0)](#funciones-de-inteligencia)
+- [Funciones de Inteligencia (v0.3.0)](#funciones-de-inteligencia-v030)
 - [Opciones de Configuración](#opciones-de-configuración)
 - [Sistema de Cache](#sistema-de-cache)
 - [Soporte Multiidioma](#soporte-multiidioma)
@@ -40,6 +40,12 @@ Cyber-MySQL-OpenAI es una librería para Node.js que traduce consultas en lengua
 - **Cache en memoria** — Capa de caché opcional de alto rendimiento con TTL variable y limpieza automática
 - **Soporte completo para TypeScript** — Definiciones de tipos completas para una experiencia de desarrollo fluida
 - **Altamente configurable** — Ajusta logging, cache, idioma y modelo según tus necesidades
+- **Inteligencia Mejorada (v0.3.0)** — Prompts optimizados con reglas de SQL y mejor desambiguación
+- **Instrucciones Personalizadas** — Inyecta tus propias reglas de negocio y estilos de respuesta en la IA
+- **Capa de Validación de Queries** — Verifica automáticamente el SQL generado por seguridad, existencia de tablas y productos cartesianos
+- **Cache de Esquema** — TTL configurable para reducir la carga de la base de datos y mejorar la latencia
+- **Seguimiento de Uso de Tokens** — Conteo detallado de tokens y costo estimado por consulta
+- **Historial de Consultas** — Registro en memoria de consultas ejecutadas con estadísticas de rendimiento
 - **Logging avanzado** — Sistema de logging estructurado con seguimiento de uso de tokens y auditoría de prompts/respuestas
 
 ---
@@ -105,11 +111,97 @@ main();
 
 ---
 
-## Funciones de Inteligencia
+## Funciones de Inteligencia (v0.3.0)
 
-> Nuevo en v0.2.0
+### 1. Instrucciones Personalizadas y Estilo de Respuesta
 
-Cyber-MySQL-OpenAI se puede configurar con contexto de negocio para mejorar drásticamente la precisión y relevancia de las consultas SQL generadas.
+Ahora puedes inyectar reglas de negocio específicas y controlar la personalidad de la IA:
+
+```typescript
+const translator = new CyberMySQLOpenAI({
+  // ...
+  context: {
+    businessDescription: "Plataforma de comercio electrónico",
+    // v0.3.0: Reglas personalizadas
+    customInstructions: [
+      "Siempre excluir registros con borrado lógico (deleted_at IS NOT NULL)",
+      "Cuando pregunten por 'ingresos', usar la suma de total_amount de la tabla orders",
+    ],
+    // v0.3.0: Estilo de respuesta ('concise', 'detailed', 'technical')
+    responseStyle: "concise",
+  },
+});
+```
+
+### 2. Validación de Queries
+
+Cada consulta generada se valida automáticamente antes de su ejecución. El sistema verifica:
+
+- **Operaciones peligrosas**: Solo se permiten sentencias `SELECT`; bloquea `UPDATE`, `DROP`, etc.
+- **Validación de esquema**: Verifica tablas o columnas inexistentes (mejor esfuerzo).
+- **Productos cartesianos**: Advierte sobre posibles productos cartesianos por condiciones JOIN faltantes.
+- **Chequeos de rendimiento**: Identifica consultas grandes sin cláusula `LIMIT`.
+
+### 3. Cache de Esquema
+
+Reduce la latencia y la carga de la base de datos cacheando las definiciones del esquema:
+
+```typescript
+const translator = new CyberMySQLOpenAI({
+  // ...
+  schemaTTL: 600000, // Cachear esquema por 10 minutos (default: 5 min)
+});
+
+// Forzar refresco si el esquema cambia
+translator.refreshSchema();
+```
+
+### 4. Historial de Consultas y Estadísticas
+
+Rastrea el rendimiento y uso durante la sesión:
+
+```typescript
+const stats = translator.getQueryStats();
+console.log(stats);
+// {
+//   totalQueries: 10,
+//   successfulQueries: 9,
+//   averageExecutionTime: 450ms,
+//   totalTokensUsed: 5200
+// }
+
+// Obtener las últimas 5 consultas
+const history = translator.getQueryHistory(5);
+```
+
+### 5. Uso de Tokens y Estimación de Costos
+
+Cada resultado ahora incluye el uso detallado de tokens y el costo estimado:
+
+```typescript
+const result = await translator.query("¿Cantidad de ventas?");
+console.log(result.tokenUsage);
+// {
+//   promptTokens: 500,
+//   completionTokens: 50,
+//   totalTokens: 550,
+//   estimatedCost: 0.0015 // USD (basado en precios actuales del modelo)
+// }
+```
+
+---
+
+const translator = new CyberMySQLOpenAI({
+database: {
+/_ ... _/
+},
+openai: {
+/_ ... _/
+},
+context, // Se inyecta en cada prompt
+});
+
+````
 
 ### Contexto de Negocio
 
@@ -140,15 +232,6 @@ const context: SchemaContext = {
   },
 };
 
-const translator = new CyberMySQLOpenAI({
-  database: {
-    /* ... */
-  },
-  openai: {
-    /* ... */
-  },
-  context, // Se inyecta en cada prompt
-});
 ```
 
 ### Ejemplos Few-Shot
@@ -484,3 +567,4 @@ Este proyecto está en **versión estable** y en desarrollo activo. Las contribu
 ## Licencia
 
 MIT
+````
