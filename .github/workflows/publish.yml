@@ -38,6 +38,9 @@ jobs:
     needs: build-and-test
     runs-on: ubuntu-latest
     if: startsWith(github.ref, 'refs/tags/v')
+    permissions:
+      contents: read
+      id-token: write
 
     steps:
       - name: Checkout repository
@@ -52,7 +55,5 @@ jobs:
       - name: Install dependencies
         run: npm ci
 
-      - name: Publish to npm
-        run: npm publish
-        env:
-          NODE_AUTH_TOKEN: ${{ secrets.NPM_TOKEN }}
+      - name: Publish to npm with provenance
+        run: npm publish --provenance --access public
