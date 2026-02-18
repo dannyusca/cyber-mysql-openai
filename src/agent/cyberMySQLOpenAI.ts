@@ -485,8 +485,8 @@ export class CyberMySQLOpenAI {
           );
         }
 
-        const toolCall = response.choices[0]?.message?.tool_calls?.[0];
-        if (toolCall && toolCall.function?.arguments) {
+        const toolCall = response.choices[0]?.message?.tool_calls?.[0] as any;
+        if (toolCall?.function?.arguments) {
           const args = JSON.parse(toolCall.function.arguments);
           this.logger.debug("SQL generated via function calling", {
             sql: args.sql,
@@ -783,8 +783,8 @@ export class CyberMySQLOpenAI {
           );
         }
 
-        const toolCall = response.choices[0]?.message?.tool_calls?.[0];
-        if (toolCall && toolCall.function?.arguments) {
+        const toolCall = response.choices[0]?.message?.tool_calls?.[0] as any;
+        if (toolCall?.function?.arguments) {
           const args = JSON.parse(toolCall.function.arguments);
           this.logger.debug("Generated reflection via function calling", {
             reasoning: args.reasoning,
