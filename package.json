@@ -1,6 +1,6 @@
 {
   "name": "cyber-mysql-openai",
-  "version": "0.2.0",
+  "version": "0.2.1",
   "description": "Intelligent natural language to SQL translator with self-correction capabilities using OpenAI and MySQL",
   "main": "./dist/index.js",
   "module": "./dist/index.js",
@@ -19,7 +19,7 @@
     "build": "rimraf dist && tsc",
     "clean": "rimraf dist",
     "test": "jest",
-    "lint": "eslint src --ext .ts",
+    "lint": "eslint src",
     "prepublishOnly": "npm run build",
     "dev": "ts-node src/index.ts"
   },

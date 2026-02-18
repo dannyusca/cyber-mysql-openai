@@ -498,12 +498,12 @@ export class CyberMySQLOpenAI {
 
         // Si no hay tool_calls, caer al contenido de mensaje
         throw new Error("No tool_calls in response");
-      } catch (fcError) {
+      } catch (_fcError) {
         // Fallback: modo texto (compatible con modelos antiguos)
         this.logger.debug(
           "Function calling not available, falling back to text mode",
           {
-            error: (fcError as Error).message,
+            error: (_fcError as Error).message,
           },
         );
 
@@ -794,7 +794,7 @@ export class CyberMySQLOpenAI {
         }
 
         throw new Error("No tool_calls in reflection response");
-      } catch (fcError) {
+      } catch (_fcError) {
         // Fallback: modo texto
         this.logger.debug(
           "Function calling not available for reflection, using text mode",

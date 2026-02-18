@@ -34,10 +34,13 @@ export class MemoryCache {
   private constructor(maxSize = 1000, cleanupIntervalMs = 300000) {
     this.maxSize = maxSize;
     this.enabled = true;
-    
+
     // Cleanup automático cada 5 minutos por defecto
     if (cleanupIntervalMs > 0) {
-      this.cleanupInterval = setInterval(() => this.cleanup(), cleanupIntervalMs);
+      this.cleanupInterval = setInterval(
+        () => this.cleanup(),
+        cleanupIntervalMs,
+      );
     }
   }
 
@@ -54,16 +57,20 @@ export class MemoryCache {
   /**
    * Genera una clave de cache normalizada
    */
-  private generateKey(prompt: string, language: string, schemaHash: string): string {
+  private generateKey(
+    prompt: string,
+    language: string,
+    schemaHash: string,
+  ): string {
     // Normalizar la consulta para mejorar hit rate
     const normalizedPrompt = prompt
       .toLowerCase()
       .trim()
-      .replace(/\s+/g, ' ') // Múltiples espacios → un espacio
-      .replace(/[¿?¡!\.]/g, '') // Remover signos de puntuación
-      .replace(/\d{4}-\d{2}-\d{2}/g, 'DATE') // Normalizar fechas
-      .replace(/\d+/g, 'NUM'); // Normalizar números
-    
+      .replace(/\s+/g, " ") // Múltiples espacios → un espacio
+      .replace(/[¿?¡!.]/g, "") // Remover signos de puntuación
+      .replace(/\d{4}-\d{2}-\d{2}/g, "DATE") // Normalizar fechas
+      .replace(/\d+/g, "NUM"); // Normalizar números
+
     return `${this.hashString(normalizedPrompt)}_${language}_${schemaHash}`;
   }
 
@@ -74,7 +81,7 @@ export class MemoryCache {
     let hash = 0;
     for (let i = 0; i < str.length; i++) {
       const char = str.charCodeAt(i);
-      hash = ((hash << 5) - hash) + char;
+      hash = (hash << 5) - hash + char;
       hash = hash & hash; // Convertir a 32bit integer
     }
     return Math.abs(hash).toString(36);
@@ -85,22 +92,26 @@ export class MemoryCache {
    */
   private getTTLByQueryType(sql: string): number {
     const upperSQL = sql.toUpperCase();
-    
+
     // Consultas de esquema y metadatos → 1 hora
-    if (upperSQL.includes('SHOW TABLES') || 
-        upperSQL.includes('DESCRIBE') || 
-        upperSQL.includes('INFORMATION_SCHEMA')) {
+    if (
+      upperSQL.includes("SHOW TABLES") ||
+      upperSQL.includes("DESCRIBE") ||
+      upperSQL.includes("INFORMATION_SCHEMA")
+    ) {
       return 3600000; // 1 hora
     }
-    
+
     // Consultas agregadas y reportes → 15 minutos
-    if (upperSQL.includes('COUNT(') || 
-        upperSQL.includes('SUM(') || 
-        upperSQL.includes('AVG(') ||
-        upperSQL.includes('GROUP BY')) {
+    if (
+      upperSQL.includes("COUNT(") ||
+      upperSQL.includes("SUM(") ||
+      upperSQL.includes("AVG(") ||
+      upperSQL.includes("GROUP BY")
+    ) {
       return 900000; // 15 minutos
     }
-    
+
     // Consultas simples → 5 minutos
     return 300000; // 5 minutos por defecto
   }
@@ -113,7 +124,7 @@ export class MemoryCache {
 
     const key = this.generateKey(prompt, language, schemaHash);
     const entry = this.cache.get(key);
-    
+
     if (!entry) {
       this.stats.misses++;
       return null;
@@ -133,7 +144,15 @@ export class MemoryCache {
   /**
    * Almacena una entrada en el cache
    */
-  set(prompt: string, language: string, schemaHash: string, sql: string, results: any[], naturalResponse: string, executionTime: number): void {
+  set(
+    prompt: string,
+    language: string,
+    schemaHash: string,
+    sql: string,
+    results: any[],
+    naturalResponse: string,
+    executionTime: number,
+  ): void {
     if (!this.enabled) return;
 
     const key = this.generateKey(prompt, language, schemaHash);
@@ -151,7 +170,7 @@ export class MemoryCache {
       timestamp: Date.now(),
       ttl,
       language,
-      executionTime
+      executionTime,
     };
 
     this.cache.set(key, entry);
@@ -189,10 +208,12 @@ export class MemoryCache {
       }
     }
 
-    keysToDelete.forEach(key => this.cache.delete(key));
-    
+    keysToDelete.forEach((key) => this.cache.delete(key));
+
     if (keysToDelete.length > 0) {
-      console.log(`[MemoryCache] Cleaned up ${keysToDelete.length} expired entries`);
+      console.log(
+        `[MemoryCache] Cleaned up ${keysToDelete.length} expired entries`,
+      );
     }
   }
 
@@ -201,14 +222,14 @@ export class MemoryCache {
    */
   invalidateByTable(tableName: string): number {
     const keysToDelete: string[] = [];
-    
+
     for (const [key, entry] of this.cache.entries()) {
       if (entry.sql.toLowerCase().includes(tableName.toLowerCase())) {
         keysToDelete.push(key);
       }
     }
-    
-    keysToDelete.forEach(key => this.cache.delete(key));
+
+    keysToDelete.forEach((key) => this.cache.delete(key));
     return keysToDelete.length;
   }
 
@@ -218,15 +239,17 @@ export class MemoryCache {
   getStats(): CacheStats {
     const total = this.stats.hits + this.stats.misses;
     const entries = Array.from(this.cache.values());
-    
+
     return {
       totalEntries: this.cache.size,
       hits: this.stats.hits,
       misses: this.stats.misses,
       hitRate: total > 0 ? (this.stats.hits / total) * 100 : 0,
       memoryUsage: this.estimateMemoryUsage(),
-      oldestEntry: entries.length > 0 ? Math.min(...entries.map(e => e.timestamp)) : 0,
-      newestEntry: entries.length > 0 ? Math.max(...entries.map(e => e.timestamp)) : 0
+      oldestEntry:
+        entries.length > 0 ? Math.min(...entries.map((e) => e.timestamp)) : 0,
+      newestEntry:
+        entries.length > 0 ? Math.max(...entries.map((e) => e.timestamp)) : 0,
     };
   }
 
@@ -235,12 +258,12 @@ export class MemoryCache {
    */
   private estimateMemoryUsage(): number {
     let totalSize = 0;
-    
+
     for (const entry of this.cache.values()) {
       // Estimación aproximada del tamaño en bytes
       totalSize += JSON.stringify(entry).length * 2; // 2 bytes por carácter en UTF-16
     }
-    
+
     return totalSize;
   }
 
