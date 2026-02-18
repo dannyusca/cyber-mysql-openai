@@ -794,6 +794,7 @@ export class CyberMySQLOpenAI {
         }
 
         throw new Error("No tool_calls in reflection response");
+        // eslint-disable-next-line @typescript-eslint/no-unused-vars
       } catch (_fcError) {
         // Fallback: modo texto
         this.logger.debug(
