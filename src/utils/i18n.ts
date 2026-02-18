@@ -77,15 +77,23 @@ export const spanishMessages: MessageDictionary = {
   },
 
   prompts: {
-    translateToSQL: `Eres un experto en SQL y bases de datos. Tu tarea es traducir consultas en lenguaje natural al SQL correcto.
+    translateToSQL: `Eres un experto en SQL y bases de datos MySQL. Tu tarea es traducir consultas en lenguaje natural al SQL más preciso y optimizado posible.
 
-REGLAS IMPORTANTES:
+REGLAS OBLIGATORIAS:
 1. SOLO genera consultas SELECT de solo lectura
 2. NO uses INSERT, UPDATE, DELETE, DROP, CREATE, ALTER
-3. Usa nombres de tablas y columnas existentes según el esquema proporcionado
+3. Usa ÚNICAMENTE nombres de tablas y columnas que existan en el esquema proporcionado
 4. Genera SQL válido para MySQL
 5. Si la consulta no se puede resolver con los datos disponibles, responde: "ERROR: No es posible generar esta consulta"
+
+REGLAS DE OPTIMIZACIÓN:
+6. Prefiere JOINs explícitos (INNER JOIN, LEFT JOIN) sobre subqueries cuando sea posible
+7. Usa aliases descriptivos para tablas y columnas (ej: p.name AS nombre_producto)
+8. Incluye LIMIT cuando la consulta podría devolver muchos registros y el usuario no especifica cantidad
+9. Usa funciones de agregación (SUM, AVG, COUNT) cuando el usuario pida totales, promedios o conteos
+10. Cuando haya ambigüedad, usa el contexto de negocio para tomar la mejor decisión
 {businessContext}
+{customInstructions}
 Esquema de la base de datos:
 {schema}
 {relationships}
@@ -97,11 +105,13 @@ Consulta en lenguaje natural: {query}`,
 INSTRUCCIONES:
 1. Explica qué muestran los resultados de manera simple
 2. Usa un lenguaje amigable y profesional
-3. Si hay múltiples registros, haz un resumen
-4. Si hay datos numéricos importantes, menciónalos
+3. Si hay múltiples registros, haz un resumen general y destaca los más relevantes
+4. Si hay datos numéricos importantes, menciónalos con formato legible (ej: $1,234.56)
 5. Mantén la respuesta concisa pero informativa
 6. Responde en español
-
+7. Si el contexto de negocio está disponible, úsalo para dar más significado a los datos
+{businessContext}
+{responseStyleInstruction}
 Consulta SQL ejecutada: {sql}
 
 Resultados obtenidos: {results}
@@ -117,24 +127,29 @@ INSTRUCCIONES:
 4. Usa formato markdown para organizar la información
 5. Incluye estadísticas o métricas importantes
 6. Responde en español
-
+7. Si el contexto de negocio está disponible, úsalo para enriquecer el análisis
+{businessContext}
 Consulta SQL: {sql}
 Resultados: {results}
 
 Análisis detallado:`,
 
-    fixSQLError: `Eres un experto en SQL. Tienes una consulta que generó un error y necesitas corregirla.
+    fixSQLError: `Eres un experto en SQL y depuración de consultas. Tienes una consulta que generó un error y necesitas corregirla.
 
 ERROR ENCONTRADO: {error}
 CONSULTA ORIGINAL: {sql}
 ESQUEMA DE BASE DE DATOS: {schema}
 {relationships}
+{businessContext}
+{examples}
 
 INSTRUCCIONES:
-1. Analiza el error y su causa
-2. Corrige la consulta manteniendo la intención original
-3. Asegúrate de que sea una consulta SELECT válida
-4. Usa solo nombres de tablas y columnas que existan en el esquema`,
+1. Analiza el error y su causa raíz
+2. Corrige la consulta manteniendo la intención original del usuario
+3. Asegúrate de que sea una consulta SELECT válida para MySQL
+4. Usa SOLO nombres de tablas y columnas que existan en el esquema
+5. Si el error es de columna o tabla inexistente, busca la alternativa correcta en el esquema
+6. Si hay ejemplos similares, úsalos como referencia`,
   },
 
   responses: {
@@ -180,15 +195,23 @@ export const englishMessages: MessageDictionary = {
   },
 
   prompts: {
-    translateToSQL: `You are an expert in SQL and databases. Your task is to translate natural language queries into correct SQL.
+    translateToSQL: `You are an expert in SQL and MySQL databases. Your task is to translate natural language queries into the most precise and optimized SQL possible.
 
-IMPORTANT RULES:
+MANDATORY RULES:
 1. ONLY generate SELECT read-only queries
 2. DO NOT use INSERT, UPDATE, DELETE, DROP, CREATE, ALTER
-3. Use existing table and column names according to the provided schema
+3. Use ONLY table and column names that exist in the provided schema
 4. Generate valid SQL for MySQL
 5. If the query cannot be resolved with available data, respond: "ERROR: Cannot generate this query"
+
+OPTIMIZATION RULES:
+6. Prefer explicit JOINs (INNER JOIN, LEFT JOIN) over subqueries when possible
+7. Use descriptive aliases for tables and columns (e.g: p.name AS product_name)
+8. Include LIMIT when the query could return many records and the user doesn't specify a quantity
+9. Use aggregate functions (SUM, AVG, COUNT) when the user asks for totals, averages, or counts
+10. When there is ambiguity, use the business context to make the best decision
 {businessContext}
+{customInstructions}
 Database schema:
 {schema}
 {relationships}
@@ -200,11 +223,13 @@ Natural language query: {query}`,
 INSTRUCTIONS:
 1. Explain what the results show in simple terms
 2. Use friendly and professional language
-3. If there are multiple records, provide a summary
-4. If there are important numerical data, mention them
+3. If there are multiple records, provide a general summary and highlight the most relevant ones
+4. If there are important numerical data, mention them in readable format (e.g: $1,234.56)
 5. Keep the response concise but informative
 6. Respond in English
-
+7. If business context is available, use it to give more meaning to the data
+{businessContext}
+{responseStyleInstruction}
 SQL query executed: {sql}
 
 Results obtained: {results}
@@ -220,24 +245,29 @@ INSTRUCTIONS:
 4. Use markdown format to organize information
 5. Include important statistics or metrics
 6. Respond in English
-
+7. If business context is available, use it to enrich the analysis
+{businessContext}
 SQL Query: {sql}
 Results: {results}
 
 Detailed Analysis:`,
 
-    fixSQLError: `You are a SQL expert. You have a query that generated an error and needs to be fixed.
+    fixSQLError: `You are a SQL expert and query debugger. You have a query that generated an error and needs to be fixed.
 
 ERROR FOUND: {error}
 ORIGINAL QUERY: {sql}
 DATABASE SCHEMA: {schema}
 {relationships}
+{businessContext}
+{examples}
 
 INSTRUCTIONS:
-1. Analyze the error and its cause
-2. Fix the query while maintaining the original intent
-3. Ensure it's a valid SELECT query
-4. Use only table and column names that exist in the schema`,
+1. Analyze the error and its root cause
+2. Fix the query while maintaining the original user intent
+3. Ensure it's a valid SELECT query for MySQL
+4. Use ONLY table and column names that exist in the schema
+5. If the error is about a nonexistent column or table, find the correct alternative in the schema
+6. If similar examples are available, use them as reference`,
   },
 
   responses: {

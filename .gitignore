@@ -39,3 +39,6 @@ temp
 
 # .sql files
 *.sql
+
+# private folder
+private

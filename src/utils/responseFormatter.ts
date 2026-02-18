@@ -14,12 +14,16 @@ export class ResponseFormatter {
   private logger: Logger;
   private model: string;
   private i18n: I18n;
+  private businessContext: string;
+  private responseStyleInstruction: string;
 
   constructor(
     apiKey: string,
     model: string = "gpt-4",
     language: SupportedLanguage = "en",
     logger?: Logger,
+    businessContext?: string,
+    responseStyleInstruction?: string,
   ) {
     this.openai = new OpenAI({
       apiKey: apiKey,
@@ -27,6 +31,8 @@ export class ResponseFormatter {
     this.model = model;
     this.logger = logger || new Logger();
     this.i18n = new I18n(language);
+    this.businessContext = businessContext || "";
+    this.responseStyleInstruction = responseStyleInstruction || "";
   }
 
   /**
@@ -147,7 +153,11 @@ export class ResponseFormatter {
    */
   private generateSimplePrompt(sql: string, resultData: string): string {
     const template = this.i18n.getMessage("prompts", "generateNaturalResponse");
-    return template.replace("{sql}", sql).replace("{results}", resultData);
+    return template
+      .replace("{sql}", sql)
+      .replace("{results}", resultData)
+      .replace("{businessContext}", this.businessContext)
+      .replace("{responseStyleInstruction}", this.responseStyleInstruction);
   }
 
   /**
@@ -164,7 +174,10 @@ export class ResponseFormatter {
       "prompts",
       "generateDetailedResponse",
     );
-    return template.replace("{sql}", sql).replace("{results}", resultData);
+    return template
+      .replace("{sql}", sql)
+      .replace("{results}", resultData)
+      .replace("{businessContext}", this.businessContext);
   }
 
   /**

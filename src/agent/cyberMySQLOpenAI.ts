@@ -8,6 +8,7 @@ import {
   NaturalResponseOptions,
   CacheStats,
   SchemaContext,
+  TokenUsage,
 } from "../types";
 import {
   DEFAULT_OPENAI_CONFIG,
@@ -24,6 +25,8 @@ import { ResponseFormatter } from "../utils/responseFormatter";
 import { DBManager } from "../db";
 import { I18n, SupportedLanguage } from "../utils/i18n";
 import { MemoryCache } from "../cache/memoryCache";
+import { validateQuery } from "../utils/queryValidator";
+import { QueryHistory, QueryRecord } from "../utils/queryHistory";
 
 /**
  * Clase principal que proporciona la funcionalidad para traducir
@@ -40,6 +43,17 @@ export class CyberMySQLOpenAI {
   private cache: MemoryCache | null = null;
   private cacheEnabled: boolean;
   private schemaContext: SchemaContext | undefined;
+
+  // Cache de schema
+  private cachedSchema: Record<
+    string,
+    { columns: any[]; foreignKeys: any[] }
+  > | null = null;
+  private schemaCachedAt: number = 0;
+  private schemaTTL: number;
+
+  // Historial de consultas
+  private queryHistory: QueryHistory;
 
   /**
    * Constructor de la clase CyberMySQLOpenAI
@@ -81,11 +95,19 @@ export class CyberMySQLOpenAI {
     this.openaiModel = openaiConfig.model;
     this.maxReflections = config.maxReflections || DEFAULT_MAX_REFLECTIONS;
     this.dbManager = new DBManager(dbConfig, this.logger);
+
+    // Almacenar contexto de negocio (antes de ResponseFormatter para que buildResponseStyleInstruction funcione)
+    this.schemaContext = config.context;
+
     this.responseFormatter = new ResponseFormatter(
       openaiConfig.apiKey,
       openaiConfig.model,
       config.language || "en",
       this.logger,
+      config.context?.businessDescription
+        ? `\nCONTEXTO DE NEGOCIO: ${config.context.businessDescription}\n`
+        : "",
+      this.buildResponseStyleInstruction(),
     );
 
     // Inicializar sistema de cache
@@ -103,15 +125,20 @@ export class CyberMySQLOpenAI {
       this.logger.info("Memory cache disabled");
     }
 
-    // Almacenar contexto de negocio
-    this.schemaContext = config.context;
+    // TTL del cache de schema (5 minutos por defecto)
+    this.schemaTTL = config.schemaTTL || 300000;
+
+    // Historial de consultas
+    this.queryHistory = new QueryHistory(100);
 
     this.logger.info("CyberMySQLOpenAI initialized successfully", {
       model: this.openaiModel,
       maxReflections: this.maxReflections,
       language: this.i18n.getLanguage(),
       cacheEnabled: this.cacheEnabled,
+      schemaTTL: this.schemaTTL,
       hasContext: !!config.context,
+      hasCustomInstructions: !!config.context?.customInstructions?.length,
       hasExamples: !!config.context?.examples?.length,
     });
   }
@@ -132,9 +159,16 @@ export class CyberMySQLOpenAI {
     try {
       this.logger.info("Processing natural language query", { prompt });
 
-      // Paso 1: Obtener el esquema de la base de datos
-      const schema = await this.dbManager.getDatabaseSchema();
+      // Paso 1: Obtener el esquema de la base de datos (con cache)
+      const schema = await this.getSchemaWithCache();
       const schemaHash = this.generateSchemaHash(schema);
+
+      // Acumulador de tokens para este request
+      const tokenAccumulator: TokenUsage = {
+        promptTokens: 0,
+        completionTokens: 0,
+        totalTokens: 0,
+      };
 
       // Paso 2: Intentar obtener resultado del cache
       if (this.cache && this.cacheEnabled && !options.bypassCache) {
@@ -172,9 +206,33 @@ export class CyberMySQLOpenAI {
       }
 
       // Paso 3: Generar SQL a partir del lenguaje natural
-      const generateResult = await this.generateSQL(prompt, schema, requestId);
+      const generateResult = await this.generateSQL(
+        prompt,
+        schema,
+        requestId,
+        tokenAccumulator,
+      );
       let sql = generateResult.sql;
       const confidence = generateResult.confidence;
+
+      // Paso 3.5: Validar la query generada
+      const validation = validateQuery(sql, schema);
+      if (validation.warnings.length > 0) {
+        this.logger.warn("Advertencias de validación de query", {
+          warnings: validation.warnings,
+        });
+      }
+      if (validation.suggestions.length > 0) {
+        this.logger.debug("Sugerencias de validación de query", {
+          suggestions: validation.suggestions,
+        });
+      }
+      if (!validation.valid) {
+        this.logger.error("Validación de query fallida", {
+          errors: validation.errors,
+        });
+        // No bloquear — dejar que la DB devuelva el error real para auto-corrección
+      }
 
       // Paso 4: Ejecutar la consulta SQL
       let results;
@@ -261,6 +319,14 @@ export class CyberMySQLOpenAI {
       }
 
       // Paso 7: Devolver resultado
+      // Calcular costo estimado si hay tokens
+      if (tokenAccumulator.totalTokens > 0) {
+        tokenAccumulator.estimatedCost = this.estimateTokenCost(
+          tokenAccumulator.promptTokens,
+          tokenAccumulator.completionTokens,
+        );
+      }
+
       const result: TranslationResult = {
         sql,
         results,
@@ -271,11 +337,26 @@ export class CyberMySQLOpenAI {
         naturalResponse,
         executionTime,
         fromCache: false,
+        tokenUsage:
+          tokenAccumulator.totalTokens > 0 ? tokenAccumulator : undefined,
       };
 
       if (detailedResponse) {
         result.detailedResponse = detailedResponse;
       }
+
+      // Registrar en historial
+      this.queryHistory.addRecord({
+        id: requestId,
+        timestamp: new Date(),
+        naturalQuery: prompt,
+        generatedSQL: sql,
+        confidence,
+        success,
+        executionTime,
+        fromCache: false,
+        tokenUsage: result.tokenUsage,
+      });
 
       return result;
     } catch (error) {
@@ -405,6 +486,7 @@ export class CyberMySQLOpenAI {
     prompt: string,
     schema: Record<string, { columns: any[]; foreignKeys: any[] }>,
     requestId: string,
+    tokenAccumulator?: TokenUsage,
   ): Promise<{ sql: string; confidence?: number }> {
     try {
       const schemaDescription = this.buildSchemaDescription(schema);
@@ -416,6 +498,7 @@ export class CyberMySQLOpenAI {
 
       const relationships = this.buildRelationshipsSection(schema);
       const examples = this.buildExamplesSection();
+      const customInstructions = this.buildCustomInstructionsSection();
 
       const systemPrompt = this.i18n.getMessageWithReplace(
         "prompts",
@@ -426,6 +509,7 @@ export class CyberMySQLOpenAI {
           businessContext,
           relationships,
           examples,
+          customInstructions,
         },
       );
 
@@ -483,6 +567,7 @@ export class CyberMySQLOpenAI {
             response.usage.total_tokens,
             this.openaiModel,
           );
+          this.accumulateTokens(tokenAccumulator, response.usage);
         }
 
         const toolCall = response.choices[0]?.message?.tool_calls?.[0] as any;
@@ -526,6 +611,7 @@ export class CyberMySQLOpenAI {
             response.usage.total_tokens,
             this.openaiModel,
           );
+          this.accumulateTokens(tokenAccumulator, response.usage);
         }
 
         // Limpiar con sqlCleaner en modo texto
@@ -824,9 +910,9 @@ export class CyberMySQLOpenAI {
 
         // Extraer el razonamiento y la SQL corregida del texto
         const reasoningMatch = content.match(
-          /RAZONAMIENTO:([\\s\\S]*?)SQL CORREGIDO:/i,
+          /RAZONAMIENTO:([\s\S]*?)SQL CORREGIDO:/i,
         );
-        const sqlMatch = content.match(/SQL CORREGIDO:([\\s\\S]*)/i);
+        const sqlMatch = content.match(/SQL CORREGIDO:([\s\S]*)/i);
 
         const reasoning = reasoningMatch
           ? reasoningMatch[1].trim()
@@ -929,6 +1015,170 @@ export class CyberMySQLOpenAI {
    */
   isCacheEnabled(): boolean {
     return this.cacheEnabled;
+  }
+
+  // ========== Cache de Schema ==========
+
+  /**
+   * Obtiene el esquema de la base de datos con cache TTL
+   */
+  private async getSchemaWithCache(): Promise<
+    Record<string, { columns: any[]; foreignKeys: any[] }>
+  > {
+    const now = Date.now();
+    if (this.cachedSchema && now - this.schemaCachedAt < this.schemaTTL) {
+      this.logger.debug("Usando schema cacheado", {
+        age: `${Math.round((now - this.schemaCachedAt) / 1000)}s`,
+        ttl: `${this.schemaTTL / 1000}s`,
+      });
+      return this.cachedSchema;
+    }
+
+    this.logger.debug("Obteniendo schema fresco de la base de datos");
+    const schema = await this.dbManager.getDatabaseSchema();
+    this.cachedSchema = schema;
+    this.schemaCachedAt = now;
+    return schema;
+  }
+
+  /**
+   * Fuerza el refresco del schema cacheado
+   */
+  refreshSchema(): void {
+    this.cachedSchema = null;
+    this.schemaCachedAt = 0;
+    this.logger.info(
+      "Cache de schema invalidado — se refrescará en la próxima consulta",
+    );
+  }
+
+  // ========== Instrucciones Personalizadas ==========
+
+  /**
+   * Construye la sección de instrucciones personalizadas para los prompts
+   */
+  private buildCustomInstructionsSection(): string {
+    if (!this.schemaContext?.customInstructions?.length) {
+      return "";
+    }
+
+    const instructions = this.schemaContext.customInstructions
+      .map((instruction, i) => `${i + 1}. ${instruction}`)
+      .join("\n");
+
+    return `\nREGLAS PERSONALIZADAS DEL USUARIO:\n${instructions}\n`;
+  }
+
+  /**
+   * Construye la instrucción de estilo de respuesta para los prompts
+   */
+  private buildResponseStyleInstruction(): string {
+    const style = this.schemaContext?.responseStyle;
+    if (!style) return "";
+
+    const styleMap: Record<string, string> = {
+      concise:
+        "Responde con respuestas breves y directas. Evita detalles innecesarios.",
+      detailed: "Proporciona explicaciones completas con contexto e insights.",
+      technical: "Usa lenguaje técnico e incluye detalles SQL en la respuesta.",
+    };
+
+    return `\nESTILO DE RESPUESTA: ${styleMap[style] || ""}\n`;
+  }
+
+  // ========== Seguimiento de Tokens ==========
+
+  /**
+   * Acumula el uso de tokens de una respuesta de OpenAI
+   */
+  private accumulateTokens(
+    accumulator: TokenUsage | undefined,
+    usage: {
+      prompt_tokens: number;
+      completion_tokens: number;
+      total_tokens: number;
+    },
+  ): void {
+    if (!accumulator) return;
+    accumulator.promptTokens += usage.prompt_tokens;
+    accumulator.completionTokens += usage.completion_tokens;
+    accumulator.totalTokens += usage.total_tokens;
+  }
+
+  /**
+   * Estima el costo en USD basado en el modelo y la cantidad de tokens.
+   * Precios por 1M de tokens (actualizados a Feb 2025).
+   */
+  private estimateTokenCost(
+    promptTokens: number,
+    completionTokens: number,
+  ): number {
+    // Precios por 1M de tokens [input, output] en USD
+    const pricing: Record<string, [number, number]> = {
+      "gpt-4o": [2.5, 10.0],
+      "gpt-4o-2024-11-20": [2.5, 10.0],
+      "gpt-4o-2024-08-06": [2.5, 10.0],
+      "gpt-4o-mini": [0.15, 0.6],
+      "gpt-4-turbo": [10.0, 30.0],
+      "gpt-4": [30.0, 60.0],
+      "gpt-3.5-turbo": [0.5, 1.5],
+    };
+
+    // Buscar precio exacto o por prefijo
+    let rates = pricing[this.openaiModel];
+    if (!rates) {
+      // Intentar match parcial (ej: "gpt-4o-mini-2024-07-18" → "gpt-4o-mini")
+      const modelLower = this.openaiModel.toLowerCase();
+      for (const [key, value] of Object.entries(pricing)) {
+        if (modelLower.startsWith(key)) {
+          rates = value;
+          break;
+        }
+      }
+    }
+
+    if (!rates) {
+      // Modelo desconocido — usar precio de gpt-4o-mini como fallback conservador
+      rates = [0.15, 0.6];
+    }
+
+    const inputCost = (promptTokens / 1_000_000) * rates[0];
+    const outputCost = (completionTokens / 1_000_000) * rates[1];
+
+    // Redondear a 6 decimales para claridad
+    return Math.round((inputCost + outputCost) * 1_000_000) / 1_000_000;
+  }
+
+  // ========== Historial de Consultas ==========
+
+  /**
+   * Obtiene el historial de ejecución de consultas
+   * @param limit - Número máximo de registros a devolver
+   */
+  getQueryHistory(limit?: number): QueryRecord[] {
+    return this.queryHistory.getHistory(limit);
+  }
+
+  /**
+   * Obtiene estadísticas sobre la ejecución de consultas
+   */
+  getQueryStats() {
+    return this.queryHistory.getStats();
+  }
+
+  /**
+   * Limpia el historial de consultas
+   */
+  clearQueryHistory(): void {
+    this.queryHistory.clearHistory();
+    this.logger.info("Historial de consultas limpiado");
+  }
+
+  /**
+   * Exporta el historial de consultas como JSON
+   */
+  exportQueryHistory(): string {
+    return this.queryHistory.exportHistory();
   }
 }
 

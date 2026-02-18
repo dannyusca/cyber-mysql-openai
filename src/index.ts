@@ -4,6 +4,9 @@ export { DBManager } from "./db";
 export { ResponseFormatter } from "./utils/responseFormatter";
 export { cleanSqlResponse } from "./utils/sqlCleaner";
 export { Logger } from "./utils";
+export { validateQuery } from "./utils/queryValidator";
+export { QueryHistory } from "./utils/queryHistory";
+export type { QueryRecord } from "./utils/queryHistory";
 
 // Exportar internacionalización
 export {
@@ -30,6 +33,8 @@ export {
   SchemaContext,
   TableContext,
   QueryExample,
+  TokenUsage,
+  ValidationResult,
 } from "./types";
 
 // Exportar sistema de cache

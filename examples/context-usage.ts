@@ -127,6 +127,17 @@ const context: SchemaContext = {
       sql: "SELECT c.name as categoria, SUM(sd.total_price) as total FROM sales_details sd INNER JOIN products p ON sd.product_id = p.id INNER JOIN categories c ON p.subcategory_id = c.id GROUP BY c.name ORDER BY total DESC",
     },
   ],
+
+  // v0.3.0: Reglas personalizadas inyectadas en el prompt
+  customInstructions: [
+    "Siempre excluir productos deshabilitados (disabled = 0) en consultas de productos",
+    "Cuando pregunten por 'ganancias' o 'beneficios', usar la columna 'benefit'",
+    "Siempre usar aliases descriptivos en español para los resultados",
+    "Los valores siempre están en USD",
+  ],
+
+  // v0.3.0: Estilo de respuesta preferido
+  responseStyle: "concise" as const,
 };
 
 // ============================================================
@@ -148,6 +159,7 @@ const translator = new CyberMySQLOpenAI({
   context, // <-- Contexto de negocio inyectado
   language: "es",
   logLevel: "info",
+  schemaTTL: 300000, // v0.3.0: Schema cacheado por 5 minutos
 });
 
 /**
@@ -247,6 +259,58 @@ async function ejemploProductosMasRentables() {
 }
 
 /**
+ * Ejemplo 6: v0.3.0 — Token Usage Tracking
+ * Cada resultado ahora incluye el uso de tokens de OpenAI
+ */
+async function ejemploTokenUsage() {
+  console.log("\n======= EJEMPLO 6: TOKEN USAGE (v0.3.0) =======");
+
+  const result = await translator.query(
+    "¿Cuáles son las 3 categorías más vendidas?",
+  );
+
+  console.log("SQL generado:", result.sql);
+  console.log("Respuesta:", result.naturalResponse);
+
+  if (result.tokenUsage) {
+    console.log("📊 Uso de tokens:");
+    console.log(`   Prompt tokens: ${result.tokenUsage.promptTokens}`);
+    console.log(`   Completion tokens: ${result.tokenUsage.completionTokens}`);
+    console.log(`   Total tokens: ${result.tokenUsage.totalTokens}`);
+    console.log(
+      `   💰 Costo estimado: $${result.tokenUsage.estimatedCost?.toFixed(6) ?? "N/A"} USD`,
+    );
+  }
+}
+
+/**
+ * Ejemplo 7: v0.3.0 — Query History & Stats
+ * Historial de consultas y estadísticas acumuladas
+ */
+async function ejemploQueryHistory() {
+  console.log("\n======= EJEMPLO 7: QUERY HISTORY & STATS (v0.3.0) =======");
+
+  // Las consultas anteriores ya están en el historial
+  const stats = translator.getQueryStats();
+  console.log("📈 Estadísticas de sesión:");
+  console.log(`   Total de consultas: ${stats.totalQueries}`);
+  console.log(`   Exitosas: ${stats.successfulQueries}`);
+  console.log(`   Fallidas: ${stats.failedQueries}`);
+  console.log(`   Tiempo promedio: ${stats.averageExecutionTime}ms`);
+  console.log(`   Cache hit rate: ${(stats.cacheHitRate * 100).toFixed(0)}%`);
+  console.log(`   Tokens totales: ${stats.totalTokensUsed}`);
+
+  // Últimas 3 consultas
+  const recentQueries = translator.getQueryHistory(3);
+  console.log("\n🕐 Últimas consultas:");
+  recentQueries.forEach((q, i) => {
+    console.log(
+      `   ${i + 1}. "${q.naturalQuery.substring(0, 50)}..." → ${q.success ? "✅" : "❌"} (${q.executionTime}ms)`,
+    );
+  });
+}
+
+/**
  * Función principal
  */
 async function main() {
@@ -260,6 +324,8 @@ async function main() {
     await ejemploStockBajo();
     await ejemploConfianza();
     await ejemploProductosMasRentables();
+    await ejemploTokenUsage();
+    await ejemploQueryHistory();
 
     console.log("\n✅ Todos los ejemplos completados.");
   } catch (error) {

@@ -1,117 +1,184 @@
-# Guía de Pruebas Locales para cyber-mysql-openai
+# Guía de Pruebas — cyber-mysql-openai v0.3.0
 
-Este documento explica cómo probar la librería localmente antes de publicarla en npm.
+Guía para probar las nuevas funcionalidades de v0.3.0.
 
-## Preparación
+## 1. Instrucciones Personalizadas
 
-1. Asegúrate de que la librería esté correctamente compilada:
-   ```bash
-   npm run build
-   ```
+Reglas personalizadas inyectadas directamente en el prompt de generación SQL:
 
-2. Crea un enlace simbólico global a tu paquete:
-   ```bash
-   npm link
-   ```
-   Esto hace que tu paquete esté disponible globalmente en tu sistema como si estuviera instalado desde npm.
+```typescript
+const agent = new CyberMySQLOpenAI({
+  database: { host, user, password, database },
+  openai: { apiKey, model: "gpt-4o-mini" },
+  context: {
+    businessDescription: "Tienda en línea de electrónicos",
+    customInstructions: [
+      "Siempre excluir productos deshabilitados (disabled = 0)",
+      "Cuando pregunten por 'ingresos', usar SUM(total_amount) de la tabla sales",
+      "Preferir aliases en español para los resultados",
+    ],
+    responseStyle: "concise", // 'concise' | 'detailed' | 'technical'
+  },
+});
+```
 
-## Crear un Proyecto de Prueba
+### Opciones de responseStyle
 
-1. Crea un nuevo directorio para tu proyecto de prueba:
-   ```bash
-   mkdir ~/test-cyber-mysql-openai
-   cd ~/test-cyber-mysql-openai
-   ```
+| Estilo      | Comportamiento                                  |
+| ----------- | ----------------------------------------------- |
+| `concise`   | Respuestas cortas y directas                    |
+| `detailed`  | Explicaciones completas con contexto e insights |
+| `technical` | Lenguaje técnico con detalles SQL               |
 
-2. Inicializa un nuevo proyecto:
-   ```bash
-   npm init -y
-   ```
+---
 
-3. Enlaza tu paquete local:
-   ```bash
-   npm link cyber-mysql-openai
-   ```
+## 2. Validación de Queries
 
-4. Crea un archivo `.env` con tus credenciales:
-   ```bash
-   cp /ruta/a/cybersql-lib/.env.example .env
-   ```
-   Edita el archivo `.env` con tus credenciales reales.
+La validación automática se ejecuta antes de cada consulta. No requiere configuración.
 
-5. Crea un archivo de prueba `test.js`:
-   ```javascript
-   const { CyberMySQLOpenAI } = require('cyber-mysql-openai');
-   require('dotenv').config();
+Para ver las advertencias de validación, habilita el logging en modo debug:
 
-   async function test() {
-     const translator = new CyberMySQLOpenAI({
-       database: {
-         host: process.env.DB_HOST,
-         port: parseInt(process.env.DB_PORT || '3306', 10),
-         user: process.env.DB_USER,
-         password: process.env.DB_PASSWORD,
-         database: process.env.DB_DATABASE,
-         ssl: process.env.DB_SSL === 'true'
-       },
-       openai: {
-         apiKey: process.env.OPENAI_API_KEY,
-         model: process.env.OPENAI_MODEL || 'gpt-4'
-       },
-       logLevel: 'debug'
-     });
+```typescript
+const agent = new CyberMySQLOpenAI({
+  // ...
+  logLevel: "debug",
+});
+```
 
-     try {
-       const result = await translator.query('muéstrame los primeros 5 registros de todas las tablas');
-       console.log('Resultado:', JSON.stringify(result, null, 2));
-     } catch (error) {
-       console.error('Error:', error);
-     } finally {
-       await translator.close();
-     }
-   }
+Validaciones incluidas:
 
-   test();
-   ```
+- ✅ Solo queries SELECT permitidas
+- ✅ Existencia de tablas en el schema
+- ✅ Existencia de columnas (mejor esfuerzo)
+- ✅ Advertencia si falta LIMIT
+- ✅ Detección de productos cartesianos
+- ✅ Sugerencia al usar SELECT \*
 
-6. Instala dotenv:
-   ```bash
-   npm install dotenv
-   ```
+---
 
-7. Ejecuta el script de prueba:
-   ```bash
-   node test.js
-   ```
+## 3. Cache de Schema
 
-## Pruebas avanzadas
+El schema se cachea por 5 minutos por defecto:
 
-Para pruebas más completas, considera probar:
+```typescript
+const agent = new CyberMySQLOpenAI({
+  // ...
+  schemaTTL: 600000, // 10 minutos en ms
+});
 
-1. **Diferentes tipos de consultas:**
-   - Consultas de selección simples
-   - Consultas con joins
-   - Consultas con condiciones complejas
-   - Consultas que incluyan funciones de agregación
+// Forzar refresco después de cambios en el schema:
+agent.refreshSchema();
+```
 
-2. **Manejo de errores:**
-   - Consultas con sintaxis incorrecta
-   - Referencias a tablas o columnas inexistentes
-   - Problemas de conexión a la base de datos
+---
 
-3. **Configuraciones diferentes:**
-   - Diferentes modelos de OpenAI
-   - Diferentes niveles de logging
-   - Opciones de formato de respuesta natural
+## 4. Seguimiento de Uso de Tokens
 
-## Limpieza
+Cada resultado de consulta incluye el uso de tokens:
 
-Cuando hayas terminado de probar, puedes eliminar el enlace:
+```typescript
+const result = await agent.query("¿Cuántos productos tenemos?");
 
-```bash
-# En tu proyecto de prueba
-npm unlink cyber-mysql-openai
+if (result.tokenUsage) {
+  console.log(`Tokens de prompt: ${result.tokenUsage.promptTokens}`);
+  console.log(`Tokens de completado: ${result.tokenUsage.completionTokens}`);
+  console.log(`Tokens totales: ${result.tokenUsage.totalTokens}`);
+}
+```
 
-# En el directorio de tu librería
-npm unlink
+---
+
+## 5. Historial de Consultas
+
+Rastrea todas las consultas ejecutadas en memoria:
+
+```typescript
+// Ejecutar algunas consultas
+await agent.query("Total de ventas de este mes");
+await agent.query("Top 5 productos por ingresos");
+
+// Obtener historial
+const historial = agent.getQueryHistory(); // todo
+const ultimas5 = agent.getQueryHistory(5); // últimas 5
+
+// Obtener estadísticas
+const stats = agent.getQueryStats();
+console.log(stats);
+// {
+//   totalQueries: 2,
+//   successfulQueries: 2,
+//   failedQueries: 0,
+//   averageExecutionTime: 3500,
+//   cacheHitRate: 0,
+//   totalTokensUsed: 1200
+// }
+
+// Exportar como JSON
+const json = agent.exportQueryHistory();
+
+// Limpiar
+agent.clearQueryHistory();
+```
+
+---
+
+## 6. Prompts Mejorados
+
+No requiere configuración — los prompts se mejoran automáticamente:
+
+- **Mejor optimización SQL**: JOINs sobre subqueries, aliases descriptivos, LIMIT automático
+- **Contexto de negocio en respuestas**: Las respuestas en lenguaje natural referencian tu contexto
+- **Corrección de errores más inteligente**: fixSQLError ahora usa ejemplos y contexto de negocio
+- **Desambiguación**: Usa el contexto de negocio para resolver consultas ambiguas
+
+---
+
+## Ejemplo Completo
+
+```typescript
+import { CyberMySQLOpenAI } from "cyber-mysql-openai";
+
+const agent = new CyberMySQLOpenAI({
+  database: {
+    host: "localhost",
+    user: "root",
+    password: "password",
+    database: "mi_tienda",
+  },
+  openai: {
+    apiKey: process.env.OPENAI_API_KEY!,
+    model: "gpt-4o-mini",
+  },
+  language: "es",
+  schemaTTL: 300000,
+  context: {
+    businessDescription: "Sistema POS de licorería",
+    customInstructions: [
+      "Excluir productos deshabilitados (disabled = 0)",
+      "Usar SUM(total_amount) para consultas de ingresos",
+    ],
+    responseStyle: "concise",
+    tables: {
+      products: { description: "Catálogo de productos" },
+      sales: { description: "Transacciones de venta" },
+    },
+    examples: [
+      {
+        question: "¿Ventas mensuales?",
+        sql: "SELECT SUM(total_amount) FROM sales WHERE MONTH(created_at) = MONTH(CURRENT_DATE())",
+      },
+    ],
+  },
+});
+
+// Consulta con todas las funcionalidades activas
+const result = await agent.query("Top 5 productos más vendidos");
+console.log("SQL:", result.sql);
+console.log("Tokens:", result.tokenUsage);
+
+// Ver estadísticas
+console.log("Stats:", agent.getQueryStats());
+
+// Cerrar conexión
+await agent.close();
 ```

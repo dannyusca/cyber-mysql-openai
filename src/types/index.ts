@@ -17,6 +17,8 @@ export interface SchemaContext {
   businessDescription?: string; // Descripción general de la base de datos
   tables?: Record<string, TableContext>; // Metadata de negocio por tabla
   examples?: QueryExample[]; // Ejemplos de consultas (máximo ~10 recomendado)
+  customInstructions?: string[]; // Reglas adicionales del usuario para el prompt
+  responseStyle?: "concise" | "detailed" | "technical"; // Estilo de respuesta preferido
 }
 
 // Configuración de la base de datos
@@ -54,6 +56,15 @@ export interface CyberMySQLOpenAIConfig {
   logEnabled?: boolean;
   language?: "es" | "en"; // Idioma para respuestas (español o inglés)
   cache?: CacheConfig; // Configuración del sistema de cache
+  schemaTTL?: number; // TTL del cache de schema en ms (default: 300000 = 5min)
+}
+
+// Uso de tokens de OpenAI
+export interface TokenUsage {
+  promptTokens: number;
+  completionTokens: number;
+  totalTokens: number;
+  estimatedCost?: number; // Costo estimado en USD
 }
 
 // Resultado de una traducción de lenguaje natural a SQL
@@ -68,6 +79,15 @@ export interface TranslationResult {
   detailedResponse?: string;
   executionTime?: number; // Tiempo de ejecución en ms
   fromCache?: boolean; // Indica si el resultado vino del cache
+  tokenUsage?: TokenUsage; // Uso de tokens de OpenAI
+}
+
+// Resultado de validación de query
+export interface ValidationResult {
+  valid: boolean;
+  warnings: string[]; // No bloquean ejecución
+  errors: string[]; // Bloquean ejecución
+  suggestions: string[]; // Mejoras sugeridas
 }
 
 // Resultado de una ejecución SQL directa
