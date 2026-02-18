@@ -25,6 +25,11 @@ Esta guía está diseñada para ayudarte a entender la estructura del proyecto `
 - Ejecución automática en MySQL
 - Corrección autónoma de errores en consultas
 - Explicaciones en lenguaje natural de los resultados
+- Contexto de negocio configurable para mayor precisión
+- Detección automática de relaciones Foreign Key
+- Ejemplos few-shot para guiar al modelo
+- Function calling con fallback automático a texto
+- Puntuación de confianza en cada consulta
 - Soporte completo para TypeScript
 - Logging avanzado
 
@@ -55,6 +60,7 @@ cyber-mysql-openai/
 Esta es la clase principal que los usuarios utilizarán para interactuar con la librería. Proporciona métodos para traducir consultas en lenguaje natural a SQL, ejecutar consultas y obtener resultados formateados.
 
 **Métodos clave**:
+
 - `query()`: Procesa una consulta en lenguaje natural, la traduce a SQL y la ejecuta
 - `executeSQL()`: Ejecuta una consulta SQL directamente
 - `close()`: Cierra las conexiones a la base de datos
@@ -67,7 +73,8 @@ Maneja toda la interacción con la base de datos MySQL, incluyendo:
 
 - Gestión de conexiones
 - Ejecución de consultas
-- Obtención del esquema de la base de datos
+- Obtención del esquema de la base de datos (con columnas y foreign keys)
+- Detección automática de relaciones FK vía `information_schema`
 - Validación de consultas de solo lectura
 
 ### 3. ResponseFormatter
@@ -98,33 +105,37 @@ El flujo típico de una consulta es:
    - El usuario envía una consulta usando el método `query()`
 
 2. **Obtención del esquema de la base de datos**:
-   - `DBManager` recupera la estructura de la base de datos para contexto
+   - `DBManager` recupera la estructura de la base de datos (columnas + foreign keys)
 
-3. **Generación de SQL**:
-   - La consulta y el esquema se envían a la API de OpenAI
-   - OpenAI genera una consulta SQL basada en el contexto
+3. **Construcción del prompt enriquecido**:
+   - Se inyecta contexto de negocio (si está configurado)
+   - Se incluyen relaciones FK detectadas
+   - Se agregan ejemplos few-shot (si están definidos)
 
-4. **Limpieza y validación**:
-   - `sqlCleaner` procesa la respuesta para extraer SQL válido
+4. **Generación de SQL**:
+   - Se intenta usar function calling de OpenAI para obtener `{ sql, confidence, reasoning }`
+   - Si el modelo no soporta function calling, se cae automáticamente a modo texto con `sqlCleaner`
 
 5. **Ejecución de la consulta**:
    - `DBManager` ejecuta la consulta en la base de datos MySQL
 
 6. **Corrección de errores (si es necesario)**:
    - Si hay errores, se inician "reflexiones" para corregir la consulta
+   - Las reflexiones también usan function calling con fallback
    - Se puede intentar hasta `maxReflections` veces
 
 7. **Generación de respuesta natural**:
    - `ResponseFormatter` convierte los resultados técnicos en texto comprensible
 
 8. **Devolución de resultados**:
-   - Se devuelve un objeto con SQL, resultados y explicaciones
+   - Se devuelve un objeto con SQL, resultados, confianza y explicaciones
 
 ## Configuración
 
 La librería es altamente configurable a través de varios parámetros:
 
 ### Configuración de la Base de Datos
+
 ```typescript
 {
   host: 'localhost',
@@ -138,6 +149,7 @@ La librería es altamente configurable a través de varios parámetros:
 ```
 
 ### Configuración de OpenAI
+
 ```typescript
 {
   apiKey: 'tu_clave_api',
@@ -146,12 +158,34 @@ La librería es altamente configurable a través de varios parámetros:
 ```
 
 ### Configuración Adicional
+
 ```typescript
 {
   maxReflections: 3, // Número máximo de intentos de corrección
   logLevel: 'info', // 'error', 'warn', 'info', 'debug'
   logDirectory: './logs', // Directorio para logs
   language: 'en' // Idioma de respuestas: 'es' (español) o 'en' (inglés)
+}
+```
+
+### Configuración de Contexto de Inteligencia (v0.2.0)
+
+```typescript
+{
+  context: {
+    businessDescription: 'Descripción del dominio de negocio',
+    tables: {
+      nombre_tabla: {
+        description: 'Descripción de la tabla',
+        columns: {
+          nombre_columna: 'Descripción de la columna'
+        }
+      }
+    },
+    examples: [
+      { question: 'Pregunta de ejemplo', sql: 'SELECT ...' }
+    ]
+  }
 }
 ```
 
@@ -174,11 +208,14 @@ Principales interfaces:
 
 - `DBConfig`: Configuración de la base de datos
 - `OpenAIConfig`: Configuración de OpenAI
-- `CyberMySQLOpenAIConfig`: Configuración completa
-- `TranslationResult`: Resultado de una traducción
+- `CyberMySQLOpenAIConfig`: Configuración completa (incluye `context` opcional)
+- `TranslationResult`: Resultado de una traducción (incluye `confidence` opcional)
 - `SQLResult`: Resultado de una ejecución SQL directa
 - `Reflection`: Estructura de una reflexión para corrección
 - `NaturalResponseOptions`: Opciones para respuestas naturales
+- `SchemaContext`: Contexto de negocio y metadata del esquema
+- `TableContext`: Descripción y metadata de columnas por tabla
+- `QueryExample`: Par pregunta/SQL para ejemplos few-shot
 
 ## Guía para Agregar Nuevas Funcionalidades
 
@@ -195,9 +232,10 @@ Para añadir una nueva capacidad a la librería:
 
 Para mejorar la comprensión de lenguaje natural:
 
-1. Modifica los prompts en `src/agent/cyberMySQLOpenAI.ts` para incluir nuevas instrucciones
-2. Añade soporte para nuevos tipos de consultas o patrones de lenguaje
-3. Considera ajustar parámetros de la API de OpenAI para diferentes casos
+1. Modifica los prompts en `src/utils/i18n.ts` (soporte para placeholders `{businessContext}`, `{relationships}`, `{examples}`)
+2. Añade contexto de negocio vía `SchemaContext` en la configuración
+3. Proporciona ejemplos few-shot para patrones específicos de tu dominio
+4. Considera ajustar parámetros de la API de OpenAI para diferentes casos
 
 ### 3. Añadir Soporte para Características de MySQL
 
@@ -242,6 +280,19 @@ La librería está preparada para su distribución a través de npm:
 
 Para pruebas locales antes de publicar, consulta `docs/testing-guide.md`.
 
+### CI/CD
+
+El proyecto incluye un workflow de GitHub Actions (`.github/workflows/publish.yml`) que:
+
+- Ejecuta build, lint y tests en cada push a `master` y en PRs
+- Publica automáticamente a npm cuando se crea un tag de versión (e.g., `v0.2.0`)
+
+Para publicar una nueva versión:
+
+1. Actualiza la versión en `package.json` (o usa `npm version patch|minor|major`)
+2. Crea y sube el tag: `git tag v0.2.0 && git push origin v0.2.0`
+3. El workflow se encarga del resto
+
 ## Sistema de Cache en Memoria
 
 **Ubicación**: `src/cache/memoryCache.ts`
@@ -262,18 +313,18 @@ La librería incluye un sistema de cache en memoria opcional que puede mejorar s
 const translator = new CyberMySQLOpenAI({
   // ... otras configuraciones
   cache: {
-    enabled: true,              // Habilitar cache (default: true)
-    maxSize: 1000,             // Máximo número de entradas (default: 1000)
-    cleanupIntervalMs: 300000  // Intervalo de limpieza en ms (default: 5min)
-  }
+    enabled: true, // Habilitar cache (default: true)
+    maxSize: 1000, // Máximo número de entradas (default: 1000)
+    cleanupIntervalMs: 300000, // Intervalo de limpieza en ms (default: 5min)
+  },
 });
 
 // Cache deshabilitado
 const translatorNoCache = new CyberMySQLOpenAI({
   // ... otras configuraciones
   cache: {
-    enabled: false
-  }
+    enabled: false,
+  },
 });
 ```
 
@@ -282,7 +333,7 @@ const translatorNoCache = new CyberMySQLOpenAI({
 El sistema aplica diferentes tiempos de vida según el tipo de consulta:
 
 - **Consultas de esquema** (SHOW TABLES, DESCRIBE): 1 hora
-- **Consultas agregadas** (COUNT, SUM, AVG, GROUP BY): 15 minutos  
+- **Consultas agregadas** (COUNT, SUM, AVG, GROUP BY): 15 minutos
 - **Consultas normales**: 5 minutos
 
 ### Uso en APIs
@@ -291,16 +342,16 @@ El sistema aplica diferentes tiempos de vida según el tipo de consulta:
 // Instancia compartida para APIs (recomendado)
 const translator = new CyberMySQLOpenAI({
   // ... configuración
-  cache: { enabled: true }
+  cache: { enabled: true },
 });
 
 // En Express.js
-app.post('/api/query', async (req, res) => {
+app.post("/api/query", async (req, res) => {
   const result = await translator.query(req.body.prompt);
   res.json({
     ...result,
     cached: result.fromCache,
-    executionTime: result.executionTime
+    executionTime: result.executionTime,
   });
 });
 ```
@@ -316,17 +367,16 @@ console.log(`Hit rate: ${stats.hitRate}%`);
 translator.clearCache();
 
 // Invalidar cache por tabla
-translator.invalidateCacheByTable('products');
+translator.invalidateCacheByTable("products");
 
 // Habilitar/deshabilitar dinámicamente
 translator.setCacheEnabled(false);
 console.log(translator.isCacheEnabled()); // false
 
 // Bypass cache para consulta específica
-const result = await translator.query(
-  'Show me latest data', 
-  { bypassCache: true }
-);
+const result = await translator.query("Show me latest data", {
+  bypassCache: true,
+});
 ```
 
 ### Beneficios de Rendimiento
@@ -340,10 +390,10 @@ const result = await translator.query(
 
 ```typescript
 // Primera consulta: ~1500ms (OpenAI + MySQL)
-const result1 = await translator.query('Show me total sales');
+const result1 = await translator.query("Show me total sales");
 
 // Segunda consulta idéntica: ~50ms (desde cache)
-const result2 = await translator.query('Show me total sales');
+const result2 = await translator.query("Show me total sales");
 
 console.log(result2.fromCache); // true
 console.log(result2.executionTime); // ~50ms
@@ -364,12 +414,12 @@ La librería incluye soporte nativo para múltiples idiomas en las respuestas ge
 // Al inicializar
 const translator = new CyberMySQLOpenAI({
   // ... otras configuraciones
-  language: 'en' // 'es' (español) o 'en' (inglés)
+  language: "en", // 'es' (español) o 'en' (inglés)
 });
 
 // Cambiar idioma dinámicamente
-translator.setLanguage('en');
-console.log('Idioma actual:', translator.getLanguage());
+translator.setLanguage("en");
+console.log("Idioma actual:", translator.getLanguage());
 ```
 
 ### Características Localizadas
@@ -392,20 +442,22 @@ El sistema utiliza diccionarios estructurados que incluyen:
 ### Ejemplo de Uso
 
 ```typescript
-import { CyberMySQLOpenAI } from 'cyber-mysql-openai';
+import { CyberMySQLOpenAI } from "cyber-mysql-openai";
 
 const translator = new CyberMySQLOpenAI({
   // ... configuración de DB y OpenAI
-  language: 'en'
+  language: "en",
 });
 
 // Consulta en inglés
-const result = await translator.query('What are the top 5 products?');
+const result = await translator.query("What are the top 5 products?");
 console.log(result.naturalResponse); // Respuesta en inglés
 
 // Cambiar a español
-translator.setLanguage('es');
-const resultado = await translator.query('¿Cuáles son los 5 productos principales?');
+translator.setLanguage("es");
+const resultado = await translator.query(
+  "¿Cuáles son los 5 productos principales?",
+);
 console.log(resultado.naturalResponse); // Respuesta en español
 ```
 

@@ -14,6 +14,7 @@ Cyber-MySQL-OpenAI es una librería para Node.js que traduce consultas en lengua
 - [Instalación](#instalación)
 - [Requisitos del Sistema](#requisitos-del-sistema)
 - [Uso Básico](#uso-básico)
+- [Funciones de Inteligencia (v0.2.0)](#funciones-de-inteligencia)
 - [Opciones de Configuración](#opciones-de-configuración)
 - [Sistema de Cache](#sistema-de-cache)
 - [Soporte Multiidioma](#soporte-multiidioma)
@@ -30,6 +31,11 @@ Cyber-MySQL-OpenAI es una librería para Node.js que traduce consultas en lengua
 - **Ejecución automática** — Ejecuta las consultas generadas directamente en tu base de datos MySQL
 - **Corrección autónoma de errores** — Detecta y corrige consultas fallidas de forma autónoma (hasta 3 intentos de reflexión)
 - **Explicaciones en lenguaje natural** — Traduce los resultados técnicos a respuestas comprensibles
+- **Salida estructurada con function calling** — Usa function calling de OpenAI para respuestas JSON predecibles con fallback automático a texto
+- **Contexto de negocio** — Enriquece la IA con conocimiento específico del dominio sobre tus tablas y columnas
+- **Detección de relaciones Foreign Key** — Descubre automáticamente las relaciones FK para JOINs precisos
+- **Ejemplos few-shot** — Proporciona pares pregunta/SQL de referencia para guiar al modelo
+- **Puntuación de confianza** — Cada consulta incluye un score de confianza indicando qué tan bien responde a la pregunta
 - **Soporte multiidioma** — Español e inglés con cambio dinámico en tiempo de ejecución
 - **Cache en memoria** — Capa de caché opcional de alto rendimiento con TTL variable y limpieza automática
 - **Soporte completo para TypeScript** — Definiciones de tipos completas para una experiencia de desarrollo fluida
@@ -96,6 +102,105 @@ async function main() {
 
 main();
 ```
+
+---
+
+## Funciones de Inteligencia
+
+> Nuevo en v0.2.0
+
+Cyber-MySQL-OpenAI se puede configurar con contexto de negocio para mejorar drásticamente la precisión y relevancia de las consultas SQL generadas.
+
+### Contexto de Negocio
+
+Proporciona a la IA conocimiento específico del dominio sobre tu base de datos:
+
+```typescript
+import { CyberMySQLOpenAI, SchemaContext } from "cyber-mysql-openai";
+
+const context: SchemaContext = {
+  businessDescription:
+    "Plataforma de e-commerce para productos electrónicos con pedidos, clientes e inventario",
+  tables: {
+    orders: {
+      description: "Pedidos de compra con seguimiento de estado",
+      columns: {
+        status:
+          "Estado del pedido: 'pending', 'shipped', 'delivered', 'cancelled'",
+        total_amount: "Total en USD incluyendo impuestos y envío",
+      },
+    },
+    products: {
+      description: "Catálogo de productos con precios y niveles de stock",
+      columns: {
+        sku: "Identificador único del producto usado en sistemas de almacén",
+        price: "Precio actual de venta en USD (antes de descuentos)",
+      },
+    },
+  },
+};
+
+const translator = new CyberMySQLOpenAI({
+  database: {
+    /* ... */
+  },
+  openai: {
+    /* ... */
+  },
+  context, // Se inyecta en cada prompt
+});
+```
+
+### Ejemplos Few-Shot
+
+Guía al modelo con pares pregunta/SQL de referencia específicos de tu dominio:
+
+```typescript
+const context: SchemaContext = {
+  businessDescription: "Plataforma de e-commerce",
+  tables: {
+    /* ... */
+  },
+  examples: [
+    {
+      question: "¿Cuáles son las ventas totales de este mes?",
+      sql: "SELECT SUM(total_amount) as total_ventas FROM orders WHERE MONTH(created_at) = MONTH(CURRENT_DATE()) AND YEAR(created_at) = YEAR(CURRENT_DATE())",
+    },
+    {
+      question: "¿Qué productos tienen poco stock?",
+      sql: "SELECT name, stock FROM products WHERE stock < 10 ORDER BY stock ASC",
+    },
+  ],
+};
+```
+
+### Relaciones Foreign Key
+
+La librería detecta automáticamente las relaciones FK desde el `information_schema` de tu base de datos y las incluye en el prompt de la IA. Esto permite al modelo construir JOINs precisos sin necesidad de describir manualmente las relaciones entre tablas.
+
+### Function Calling con Fallback
+
+La librería usa la funcionalidad de function calling de OpenAI para respuestas estructuradas y predecibles:
+
+- **Modo primario (function calling):** Devuelve `{ sql, confidence, reasoning }` como JSON estructurado
+- **Modo fallback (texto):** Si el modelo no soporta function calling, la librería cae automáticamente al parsing de texto con `sqlCleaner`
+
+Este enfoque dual asegura compatibilidad con todos los modelos de OpenAI (GPT-3.5, GPT-4, GPT-4o, etc.).
+
+### Puntuación de Confianza
+
+Cada resultado de consulta incluye un campo opcional `confidence` (0–1) cuando function calling está disponible:
+
+```typescript
+const result = await translator.query(
+  "¿Cuáles son los 5 productos con más ingresos?",
+);
+
+console.log(result.confidence); // 0.95
+console.log(result.sql); // SELECT ...
+```
+
+Usa `confidence` para implementar lógica como advertir al usuario cuando el modelo no está seguro, o activar una revisión manual para consultas con baja confianza.
 
 ---
 
@@ -303,17 +408,18 @@ console.log("Respuesta detallada:", result.detailedResponse);
 
 **TranslationResult** (devuelto por `query`):
 
-| Campo              | Tipo           | Descripción                                      |
-| ------------------ | -------------- | ------------------------------------------------ |
-| `sql`              | `string`       | La consulta SQL generada                         |
-| `results`          | `any[]`        | Resultados de la consulta desde la base de datos |
-| `reflections`      | `Reflection[]` | Historial de correcciones de error (si hubo)     |
-| `attempts`         | `number`       | Total de intentos de ejecución                   |
-| `success`          | `boolean`      | Si la consulta fue exitosa                       |
-| `naturalResponse`  | `string`       | Explicación comprensible                         |
-| `detailedResponse` | `string`       | Análisis detallado (cuando `detailed: true`)     |
-| `executionTime`    | `number`       | Tiempo total de ejecución en milisegundos        |
-| `fromCache`        | `boolean`      | Si el resultado se sirvió desde el cache         |
+| Campo              | Tipo           | Descripción                                               |
+| ------------------ | -------------- | --------------------------------------------------------- |
+| `sql`              | `string`       | La consulta SQL generada                                  |
+| `results`          | `any[]`        | Resultados de la consulta desde la base de datos          |
+| `reflections`      | `Reflection[]` | Historial de correcciones de error (si hubo)              |
+| `attempts`         | `number`       | Total de intentos de ejecución                            |
+| `success`          | `boolean`      | Si la consulta fue exitosa                                |
+| `confidence`       | `number?`      | Score de confianza (0–1), disponible con function calling |
+| `naturalResponse`  | `string`       | Explicación comprensible                                  |
+| `detailedResponse` | `string`       | Análisis detallado (cuando `detailed: true`)              |
+| `executionTime`    | `number`       | Tiempo total de ejecución en milisegundos                 |
+| `fromCache`        | `boolean`      | Si el resultado se sirvió desde el cache                  |
 
 ---
 
@@ -365,9 +471,12 @@ Este proyecto está en **versión estable** y en desarrollo activo. Las contribu
 
 ### Hoja de Ruta
 
+- ~~Contexto de negocio y metadata de esquema~~ (incluido en v0.2.0)
+- ~~Detección de relaciones Foreign Key~~ (incluido en v0.2.0)
+- ~~Function calling con salida estructurada~~ (incluido en v0.2.0)
+- ~~Soporte de ejemplos few-shot~~ (incluido en v0.2.0)
 - Optimización de rendimiento para esquemas de base de datos grandes
 - Soporte para dialectos SQL adicionales
-- Mejora en el manejo de consultas complejas multi-tabla
 - Ampliación de documentación y ejemplos de uso
 
 ---

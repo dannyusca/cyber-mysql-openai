@@ -1,19 +1,19 @@
 // src/index.ts
-export { CyberMySQLOpenAI } from './agent/cyberMySQLOpenAI';
-export { DBManager } from './db';
-export { ResponseFormatter } from './utils/responseFormatter';
-export { cleanSqlResponse } from './utils/sqlCleaner';
-export { Logger } from './utils';
+export { CyberMySQLOpenAI } from "./agent/cyberMySQLOpenAI";
+export { DBManager } from "./db";
+export { ResponseFormatter } from "./utils/responseFormatter";
+export { cleanSqlResponse } from "./utils/sqlCleaner";
+export { Logger } from "./utils";
 
 // Exportar internacionalización
-export { 
-  I18n, 
-  SupportedLanguage, 
+export {
+  I18n,
+  SupportedLanguage,
   MessageDictionary,
   spanishMessages,
   englishMessages,
-  defaultI18n
-} from './utils/i18n';
+  defaultI18n,
+} from "./utils/i18n";
 
 // Exportar tipos
 export {
@@ -26,11 +26,14 @@ export {
   NaturalResponseOptions,
   Reflection,
   LogLevel,
-  CacheStats
-} from './types';
+  CacheStats,
+  SchemaContext,
+  TableContext,
+  QueryExample,
+} from "./types";
 
 // Exportar sistema de cache
-export { MemoryCache } from './cache/memoryCache';
+export { MemoryCache } from "./cache/memoryCache";
 
 // Exportar configuraciones predeterminadas
 export {
@@ -38,5 +41,5 @@ export {
   DEFAULT_DB_CONFIG,
   DEFAULT_MAX_REFLECTIONS,
   DEFAULT_LOG_LEVEL,
-  DEFAULT_LOG_DIRECTORY
-} from './config';
+  DEFAULT_LOG_DIRECTORY,
+} from "./config";

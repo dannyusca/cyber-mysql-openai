@@ -37,3 +37,6 @@ coverage
 # Archivos temporales
 tmp
 temp
+
+# .sql files
+*.sql

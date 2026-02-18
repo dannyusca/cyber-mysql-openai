@@ -4,7 +4,7 @@
  * Diccionario de mensajes multiidioma para cyber-mysql-openai
  */
 
-export type SupportedLanguage = 'es' | 'en';
+export type SupportedLanguage = "es" | "en";
 
 export interface MessageDictionary {
   // Mensajes de error
@@ -16,14 +16,14 @@ export interface MessageDictionary {
     openaiError: string;
     databaseError: string;
   };
-  
+
   // Mensajes de éxito
   success: {
     queryExecuted: string;
     connectionEstablished: string;
     responseGenerated: string;
   };
-  
+
   // Prompts para OpenAI
   prompts: {
     translateToSQL: string;
@@ -31,7 +31,7 @@ export interface MessageDictionary {
     generateDetailedResponse: string;
     fixSQLError: string;
   };
-  
+
   // Mensajes de respuesta natural por defecto
   responses: {
     noResultsFound: string;
@@ -40,7 +40,7 @@ export interface MessageDictionary {
     dataAnalysis: string;
     queryCompleted: string;
   };
-  
+
   // Etiquetas y texto de interfaz
   labels: {
     sqlGenerated: string;
@@ -60,19 +60,22 @@ export interface MessageDictionary {
 export const spanishMessages: MessageDictionary = {
   errors: {
     noResults: "No se encontraron resultados que coincidan con tu consulta.",
-    connectionFailed: "Error al conectar con la base de datos. Verifica tu configuración.",
+    connectionFailed:
+      "Error al conectar con la base de datos. Verifica tu configuración.",
     invalidQuery: "La consulta generada no es válida o no es segura.",
-    maxReflectionsReached: "Se alcanzó el número máximo de intentos de corrección.",
+    maxReflectionsReached:
+      "Se alcanzó el número máximo de intentos de corrección.",
     openaiError: "Error al comunicarse con el servicio de OpenAI.",
-    databaseError: "Error en la base de datos al ejecutar la consulta."
+    databaseError: "Error en la base de datos al ejecutar la consulta.",
   },
-  
+
   success: {
     queryExecuted: "Consulta ejecutada exitosamente.",
-    connectionEstablished: "Conexión a la base de datos establecida correctamente.",
-    responseGenerated: "Respuesta natural generada con éxito."
+    connectionEstablished:
+      "Conexión a la base de datos establecida correctamente.",
+    responseGenerated: "Respuesta natural generada con éxito.",
   },
-  
+
   prompts: {
     translateToSQL: `Eres un experto en SQL y bases de datos. Tu tarea es traducir consultas en lenguaje natural al SQL correcto.
 
@@ -81,15 +84,13 @@ REGLAS IMPORTANTES:
 2. NO uses INSERT, UPDATE, DELETE, DROP, CREATE, ALTER
 3. Usa nombres de tablas y columnas existentes según el esquema proporcionado
 4. Genera SQL válido para MySQL
-5. Responde SOLO con la consulta SQL, sin explicaciones adicionales
-6. Si la consulta no se puede resolver con los datos disponibles, responde: "ERROR: No es posible generar esta consulta"
-
+5. Si la consulta no se puede resolver con los datos disponibles, responde: "ERROR: No es posible generar esta consulta"
+{businessContext}
 Esquema de la base de datos:
 {schema}
-
-Consulta en lenguaje natural: {query}
-
-SQL:`,
+{relationships}
+{examples}
+Consulta en lenguaje natural: {query}`,
 
     generateNaturalResponse: `Eres un asistente experto en análisis de datos. Tu tarea es explicar los resultados de una consulta SQL en lenguaje natural, claro y comprensible.
 
@@ -127,25 +128,25 @@ Análisis detallado:`,
 ERROR ENCONTRADO: {error}
 CONSULTA ORIGINAL: {sql}
 ESQUEMA DE BASE DE DATOS: {schema}
+{relationships}
 
 INSTRUCCIONES:
 1. Analiza el error y su causa
 2. Corrige la consulta manteniendo la intención original
 3. Asegúrate de que sea una consulta SELECT válida
-4. Usa solo nombres de tablas y columnas que existan en el esquema
-5. Responde SOLO con la consulta SQL corregida
-
-SQL CORREGIDO:`
+4. Usa solo nombres de tablas y columnas que existan en el esquema`,
   },
-  
+
   responses: {
-    noResultsFound: "No se encontraron datos que coincidan con los criterios de búsqueda.",
-    multipleResults: "Se encontraron {count} registros que coinciden con tu consulta.",
+    noResultsFound:
+      "No se encontraron datos que coincidan con los criterios de búsqueda.",
+    multipleResults:
+      "Se encontraron {count} registros que coinciden con tu consulta.",
     singleResult: "Se encontró 1 registro que coincide con tu consulta.",
     dataAnalysis: "Análisis de los datos obtenidos:",
-    queryCompleted: "Consulta completada exitosamente."
+    queryCompleted: "Consulta completada exitosamente.",
   },
-  
+
   labels: {
     sqlGenerated: "SQL generado",
     results: "Resultados",
@@ -154,8 +155,8 @@ SQL CORREGIDO:`
     attempts: "Intentos",
     reflections: "Reflexiones",
     executionTime: "Tiempo de ejecución",
-    rowsAffected: "Filas afectadas"
-  }
+    rowsAffected: "Filas afectadas",
+  },
 };
 
 /**
@@ -164,19 +165,20 @@ SQL CORREGIDO:`
 export const englishMessages: MessageDictionary = {
   errors: {
     noResults: "No results found matching your query.",
-    connectionFailed: "Failed to connect to the database. Please check your configuration.",
+    connectionFailed:
+      "Failed to connect to the database. Please check your configuration.",
     invalidQuery: "The generated query is invalid or not safe.",
     maxReflectionsReached: "Maximum number of correction attempts reached.",
     openaiError: "Error communicating with OpenAI service.",
-    databaseError: "Database error occurred while executing the query."
+    databaseError: "Database error occurred while executing the query.",
   },
-  
+
   success: {
     queryExecuted: "Query executed successfully.",
     connectionEstablished: "Database connection established successfully.",
-    responseGenerated: "Natural response generated successfully."
+    responseGenerated: "Natural response generated successfully.",
   },
-  
+
   prompts: {
     translateToSQL: `You are an expert in SQL and databases. Your task is to translate natural language queries into correct SQL.
 
@@ -185,15 +187,13 @@ IMPORTANT RULES:
 2. DO NOT use INSERT, UPDATE, DELETE, DROP, CREATE, ALTER
 3. Use existing table and column names according to the provided schema
 4. Generate valid SQL for MySQL
-5. Respond ONLY with the SQL query, no additional explanations
-6. If the query cannot be resolved with available data, respond: "ERROR: Cannot generate this query"
-
+5. If the query cannot be resolved with available data, respond: "ERROR: Cannot generate this query"
+{businessContext}
 Database schema:
 {schema}
-
-Natural language query: {query}
-
-SQL:`,
+{relationships}
+{examples}
+Natural language query: {query}`,
 
     generateNaturalResponse: `You are an expert data analysis assistant. Your task is to explain SQL query results in clear, understandable natural language.
 
@@ -231,25 +231,23 @@ Detailed Analysis:`,
 ERROR FOUND: {error}
 ORIGINAL QUERY: {sql}
 DATABASE SCHEMA: {schema}
+{relationships}
 
 INSTRUCTIONS:
 1. Analyze the error and its cause
 2. Fix the query while maintaining the original intent
 3. Ensure it's a valid SELECT query
-4. Use only table and column names that exist in the schema
-5. Respond ONLY with the corrected SQL query
-
-CORRECTED SQL:`
+4. Use only table and column names that exist in the schema`,
   },
-  
+
   responses: {
     noResultsFound: "No data found matching the search criteria.",
     multipleResults: "Found {count} records matching your query.",
     singleResult: "Found 1 record matching your query.",
     dataAnalysis: "Analysis of the obtained data:",
-    queryCompleted: "Query completed successfully."
+    queryCompleted: "Query completed successfully.",
   },
-  
+
   labels: {
     sqlGenerated: "Generated SQL",
     results: "Results",
@@ -258,8 +256,8 @@ CORRECTED SQL:`
     attempts: "Attempts",
     reflections: "Reflections",
     executionTime: "Execution time",
-    rowsAffected: "Rows affected"
-  }
+    rowsAffected: "Rows affected",
+  },
 };
 
 /**
@@ -268,25 +266,25 @@ CORRECTED SQL:`
 export class I18n {
   private language: SupportedLanguage;
   private messages: MessageDictionary;
-  
-  constructor(language: SupportedLanguage = 'en') {
+
+  constructor(language: SupportedLanguage = "en") {
     this.language = language;
     this.messages = this.getMessages(language);
   }
-  
+
   /**
    * Obtiene el diccionario de mensajes para un idioma específico
    */
   private getMessages(language: SupportedLanguage): MessageDictionary {
     switch (language) {
-      case 'en':
+      case "en":
         return englishMessages;
-      case 'es':
+      case "es":
       default:
         return spanishMessages;
     }
   }
-  
+
   /**
    * Cambia el idioma activo
    */
@@ -294,14 +292,14 @@ export class I18n {
     this.language = language;
     this.messages = this.getMessages(language);
   }
-  
+
   /**
    * Obtiene el idioma actual
    */
   getLanguage(): SupportedLanguage {
     return this.language;
   }
-  
+
   /**
    * Obtiene un mensaje específico
    */
@@ -309,26 +307,26 @@ export class I18n {
     const categoryMessages = this.messages[category] as Record<string, string>;
     return categoryMessages[key] || `Missing translation: ${category}.${key}`;
   }
-  
+
   /**
    * Obtiene un mensaje con reemplazo de variables
    */
   getMessageWithReplace(
-    category: keyof MessageDictionary, 
-    key: string, 
-    replacements: Record<string, string | number>
+    category: keyof MessageDictionary,
+    key: string,
+    replacements: Record<string, string | number>,
   ): string {
     let message = this.getMessage(category, key);
-    
+
     // Reemplazar variables en el mensaje
     Object.entries(replacements).forEach(([placeholder, value]) => {
-      const regex = new RegExp(`\\{${placeholder}\\}`, 'g');
+      const regex = new RegExp(`\\{${placeholder}\\}`, "g");
       message = message.replace(regex, String(value));
     });
-    
+
     return message;
   }
-  
+
   /**
    * Obtiene todos los mensajes de una categoría
    */
@@ -338,4 +336,4 @@ export class I18n {
 }
 
 // Instancia por defecto
-export const defaultI18n = new I18n('en');
+export const defaultI18n = new I18n("en");
