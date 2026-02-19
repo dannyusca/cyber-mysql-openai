@@ -238,10 +238,6 @@ console.log(result.tokenUsage);
 
 ---
 
-### Foreign Key Relationships
-
-The library automatically detects FK relationships from your database's `information_schema` and includes them in the AI prompt. This enables the model to construct accurate JOINs without you having to describe table relationships manually.
-
 ### Few-Shot Examples
 
 Guide the model with reference question/SQL pairs specific to your domain:
@@ -569,8 +565,15 @@ This project is in **stable release** and under active development. Contribution
 - ~~Foreign key relationship detection~~ (shipped in v0.2.0)
 - ~~Function calling with structured output~~ (shipped in v0.2.0)
 - ~~Few-shot example support~~ (shipped in v0.2.0)
+- ~~Custom instructions and response styles~~ (shipped in v0.3.0)
+- ~~Query validation layer~~ (shipped in v0.3.0)
+- ~~Schema caching with configurable TTL~~ (shipped in v0.3.0)
+- ~~Token usage tracking and cost estimation~~ (shipped in v0.3.0)
+- ~~Query history and performance stats~~ (shipped in v0.3.0)
+- ~~Reflection context injection bugfix~~ (shipped in v0.3.1)
 - Performance optimization for large database schemas
 - Support for additional SQL dialects
+- Streaming responses
 - Expanded documentation and usage examples
 
 ---

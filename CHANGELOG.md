@@ -2,9 +2,49 @@
 
 All notable changes to this project will be documented in this file.
 
+## [0.3.1] - 2026-02-18
+
+### Fixed
+
+- **Reflection context injection**: `generateReflection()` now correctly injects `businessContext`, `examples`, and `customInstructions` into the `fixSQLError` prompt. Previously, these template variables were left as literal `{businessContext}` text in the prompt sent to OpenAI, severely degrading error correction quality.
+- **SQL Cleaner backtick preservation**: Removed the blanket ``replace(/`/g, '')`` call that was stripping MySQL's legitimate backtick-quoted identifiers (e.g., `` `user`.`name` ``). Triple backtick markdown blocks are still properly cleaned.
+- **`fixSQLError` template enhancement**: Added `{customInstructions}` placeholder to both Spanish and English `fixSQLError` templates, plus a new instruction (#7) to respect custom rules during error correction.
+
+### Added
+
+- **New tests**: 2 additional test cases in `utils.test.ts` validating that MySQL backtick-quoted identifiers are preserved by `sqlCleaner`.
+
+## [0.3.0] - 2026-02-17
+
+### Added
+
+- **Custom Instructions**: Inject business rules via `context.customInstructions` array
+- **Response Style**: Control AI personality with `context.responseStyle` ('concise', 'detailed', 'technical')
+- **Query Validation Layer**: Automatic pre-execution validation for dangerous operations, schema mismatches, cartesian products, and missing LIMIT clauses
+- **Schema Caching**: Configurable TTL (`schemaTTL`) to reduce database load; manual refresh via `refreshSchema()`
+- **Token Usage Tracking**: Detailed token counts (`promptTokens`, `completionTokens`, `totalTokens`) and `estimatedCost` per query
+- **Query History**: In-memory log with `getQueryHistory(n)` and `getQueryStats()` methods
+- **Advanced Logging**: Structured logging with token usage tracking and prompt/response audit trails
+
+### Enhanced
+
+- **Improved SQL generation prompts**: Better disambiguation, SQL optimization rules, and alias conventions
+- **Enhanced error correction**: Reflection now uses schema relationships and context for smarter fixes
+
+## [0.2.0] - Previous version
+
+### Added
+
+- **Business Context**: `SchemaContext` with `businessDescription`, `tables`, and column metadata
+- **Foreign Key Relationship Detection**: Automatic FK discovery from `information_schema`
+- **Few-shot Examples**: Reference question/SQL pairs via `context.examples`
+- **Function Calling**: Structured output with `{ sql, confidence, reasoning }` and automatic text fallback
+- **Confidence Scoring**: 0–1 confidence score per query result
+
 ## [0.1.10] - 2025-07-09
 
 ### Added
+
 - **Intelligent Memory Cache System**: New optional high-performance in-memory cache
   - Intelligent query normalization for maximum cache hits
   - Variable TTL based on query complexity and result size
@@ -14,6 +54,7 @@ All notable changes to this project will be documented in this file.
   - Methods for dynamic cache control (enable/disable/clear)
 
 ### Enhanced
+
 - **Multi-language Support**: Complete bilingual documentation
   - English README.md for international users
   - Spanish README.es.md for Spanish-speaking users
@@ -31,43 +72,48 @@ All notable changes to this project will be documented in this file.
   - `isCacheEnabled()`: Check cache status
 
 ### Documentation
-- **Comprehensive Cache Documentation**: 
+
+- **Comprehensive Cache Documentation**:
   - Basic usage examples in both READMEs
   - Advanced usage guide in `docs/cache-examples.md`
   - API integration best practices
   - Performance optimization recommendations
-  
 - **Technical Guide Updates**: Updated `docs/guia-tecnica.md`
   - Cache system architecture
   - Integration recommendations for APIs
   - Memory management guidelines
 
 ### Examples
+
 - **Cache Usage Example**: New `examples/cache-usage.ts`
   - Demonstrates basic cache functionality
   - Shows cache management methods
   - Performance comparison examples
 
 ### Infrastructure
+
 - **NestJS Compatibility**: Guidance for NestJS integration
   - Module and service examples
   - Dependency injection patterns
   - Global instance recommendations for cache persistence
 
 ### Performance
+
 - **Query Optimization**: Intelligent query normalization
   - SQL query standardization for better cache hits
   - Whitespace and case normalization
   - Parameter extraction and normalization
 
 ### Best Practices
-- **API Integration Guidelines**: 
+
+- **API Integration Guidelines**:
   - Global instance patterns for cache persistence
   - Memory management recommendations
   - Cache invalidation strategies
   - Multi-user considerations
 
 ## [0.1.8] - Previous version
+
 - Initial multi-language support
 - Basic query translation functionality
 - Error correction system
@@ -89,8 +135,8 @@ const translator = new CyberMySQLOpenAI({
   cache: {
     enabled: true,
     maxSize: 1000,
-    defaultTTL: 300000
-  }
+    defaultTTL: 300000,
+  },
 });
 ```
 

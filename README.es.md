@@ -191,18 +191,6 @@ console.log(result.tokenUsage);
 
 ---
 
-const translator = new CyberMySQLOpenAI({
-database: {
-/_ ... _/
-},
-openai: {
-/_ ... _/
-},
-context, // Se inyecta en cada prompt
-});
-
-````
-
 ### Contexto de Negocio
 
 Proporciona a la IA conocimiento específico del dominio sobre tu base de datos:
@@ -231,7 +219,6 @@ const context: SchemaContext = {
     },
   },
 };
-
 ```
 
 ### Ejemplos Few-Shot
@@ -558,8 +545,15 @@ Este proyecto está en **versión estable** y en desarrollo activo. Las contribu
 - ~~Detección de relaciones Foreign Key~~ (incluido en v0.2.0)
 - ~~Function calling con salida estructurada~~ (incluido en v0.2.0)
 - ~~Soporte de ejemplos few-shot~~ (incluido en v0.2.0)
+- ~~Instrucciones personalizadas y estilos de respuesta~~ (incluido en v0.3.0)
+- ~~Capa de validación de queries~~ (incluido en v0.3.0)
+- ~~Cache de esquema con TTL configurable~~ (incluido en v0.3.0)
+- ~~Seguimiento de uso de tokens y estimación de costos~~ (incluido en v0.3.0)
+- ~~Historial de consultas y estadísticas~~ (incluido en v0.3.0)
+- ~~Corrección de inyección de contexto en reflexión~~ (incluido en v0.3.1)
 - Optimización de rendimiento para esquemas de base de datos grandes
 - Soporte para dialectos SQL adicionales
+- Respuestas en streaming
 - Ampliación de documentación y ejemplos de uso
 
 ---
@@ -567,4 +561,7 @@ Este proyecto está en **versión estable** y en desarrollo activo. Las contribu
 ## Licencia
 
 MIT
-````
+
+```
+
+```
