@@ -142,6 +142,7 @@ ESQUEMA DE BASE DE DATOS: {schema}
 {relationships}
 {businessContext}
 {examples}
+{customInstructions}
 
 INSTRUCCIONES:
 1. Analiza el error y su causa raíz
@@ -149,7 +150,8 @@ INSTRUCCIONES:
 3. Asegúrate de que sea una consulta SELECT válida para MySQL
 4. Usa SOLO nombres de tablas y columnas que existan en el esquema
 5. Si el error es de columna o tabla inexistente, busca la alternativa correcta en el esquema
-6. Si hay ejemplos similares, úsalos como referencia`,
+6. Si hay ejemplos similares, úsalos como referencia
+7. Si hay reglas personalizadas, respétalas en la corrección`,
   },
 
   responses: {
@@ -260,6 +262,7 @@ DATABASE SCHEMA: {schema}
 {relationships}
 {businessContext}
 {examples}
+{customInstructions}
 
 INSTRUCTIONS:
 1. Analyze the error and its root cause
@@ -267,7 +270,8 @@ INSTRUCTIONS:
 3. Ensure it's a valid SELECT query for MySQL
 4. Use ONLY table and column names that exist in the schema
 5. If the error is about a nonexistent column or table, find the correct alternative in the schema
-6. If similar examples are available, use them as reference`,
+6. If similar examples are available, use them as reference
+7. If there are custom rules, respect them in the correction`,
   },
 
   responses: {

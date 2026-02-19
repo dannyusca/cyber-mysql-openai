@@ -806,6 +806,13 @@ export class CyberMySQLOpenAI {
       const schemaDescription = this.buildSchemaDescription(schema);
       const relationships = this.buildRelationshipsSection(schema);
 
+      // Construir secciones de contexto para la reflexión
+      const businessContext = this.schemaContext?.businessDescription
+        ? `\nCONTEXTO DE NEGOCIO: ${this.schemaContext.businessDescription}\n`
+        : "";
+      const examples = this.buildExamplesSection();
+      const customInstructions = this.buildCustomInstructionsSection();
+
       const systemPrompt = this.i18n.getMessageWithReplace(
         "prompts",
         "fixSQLError",
@@ -814,6 +821,9 @@ export class CyberMySQLOpenAI {
           sql: sql,
           schema: schemaDescription,
           relationships,
+          businessContext,
+          examples,
+          customInstructions,
         },
       );
 
