@@ -15,7 +15,7 @@ Cyber-MySQL-OpenAI es una librería para Node.js que traduce consultas en lengua
 - [Requisitos del Sistema](#requisitos-del-sistema)
 - [Uso Básico](#uso-básico)
 - [Funciones de Inteligencia (v0.3.0)](#funciones-de-inteligencia-v030)
-- [Optimización de Tokens (v0.4.0)](#optimización-de-tokens-v040)
+- [Optimización de Tokens (v0.3.2)](#optimización-de-tokens-v032)
 - [Opciones de Configuración](#opciones-de-configuración)
 - [Sistema de Cache](#sistema-de-cache)
 - [Soporte Multiidioma](#soporte-multiidioma)
@@ -48,7 +48,7 @@ Cyber-MySQL-OpenAI es una librería para Node.js que traduce consultas en lengua
 - **Seguimiento de Uso de Tokens** — Conteo detallado de tokens y costo estimado por consulta
 - **Historial de Consultas** — Registro en memoria de consultas ejecutadas con estadísticas de rendimiento
 - **Logging avanzado** — Sistema de logging estructurado con seguimiento de uso de tokens y auditoría de prompts/respuestas
-- **Optimización de Tokens (v0.4.0)** — Schema comprimido, `lightModel` para subtareas y schema filtrado en reflexiones — **50–70% menos tokens por request**
+- **Optimización de Tokens (v0.3.2)** — Schema comprimido, `lightModel` para subtareas y schema filtrado en reflexiones — **50–70% menos tokens por request**
 
 ---
 
@@ -276,7 +276,7 @@ Usa `confidence` para implementar lógica como advertir al usuario cuando el mod
 
 ---
 
-## Optimización de Tokens (v0.4.0)
+## Optimización de Tokens (v0.3.2)
 
 Tres optimizaciones integradas reducen el consumo de tokens en un 50–70% sin cambios en el comportamiento.
 
@@ -303,7 +303,7 @@ const translator = new CyberMySQLOpenAI({
   openai: {
     apiKey: "...",
     model: "gpt-4o", // Generación SQL (requiere inteligencia)
-    lightModel: "gpt-4o-mini", // Reflexión y formato (20x más barato, misma calidad)
+    lightModel: "gpt-4o-mini", // Reflexión y formato (20x más barato, misma calidad) (v0.3.2)
   },
 });
 ```
@@ -337,7 +337,7 @@ const translator = new CyberMySQLOpenAI({
   openai: {
     apiKey: "tu_clave_api",
     model: "gpt-4o", // Modelo principal para generación SQL
-    lightModel: "gpt-4o-mini", // Opcional: modelo ligero para reflexión y formato (v0.4.0)
+    lightModel: "gpt-4o-mini", // Opcional: modelo ligero para reflexión y formato (v0.3.2)
   },
 
   // Configuración del cache (opcional)
@@ -596,9 +596,9 @@ Este proyecto está en **versión estable** y en desarrollo activo. Las contribu
 - ~~Seguimiento de uso de tokens y estimación de costos~~ (incluido en v0.3.0)
 - ~~Historial de consultas y estadísticas~~ (incluido en v0.3.0)
 - ~~Corrección de inyección de contexto en reflexión~~ (incluido en v0.3.1)
-- ~~Schema comprimido (66% menos tokens)~~ (incluido en v0.4.0)
-- ~~`lightModel` para subtareas (reflexiones 85% más baratas)~~ (incluido en v0.4.0)
-- ~~Schema filtrado en reflexiones~~ (incluido en v0.4.0)
+- ~~Schema comprimido (66% menos tokens)~~ (incluido en v0.3.2)
+- ~~`lightModel` para subtareas (reflexiones 85% más baratas)~~ (incluido en v0.3.2)
+- ~~Schema filtrado en reflexiones~~ (incluido en v0.3.2)
 - Soporte para dialectos SQL adicionales
 - Respuestas en streaming
 - Ampliación de documentación y ejemplos de uso
