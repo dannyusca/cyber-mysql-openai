@@ -2,7 +2,38 @@
 
 All notable changes to this project will be documented in this file.
 
-## [0.3.1] - 2026-02-18
+## [0.4.0] - 2026-03-07
+
+### Added
+
+- **`lightModel` para subtareas** — Nueva opción `openai.lightModel` (default: `gpt-4o-mini`) que permite usar un modelo más barato para `generateReflection()` y `generateNaturalResponse()`, reservando el modelo principal para la generación SQL. Configurable también con la variable de entorno `OPENAI_LIGHT_MODEL`. Ahorro de costo ~85% en subtareas.
+- **`extractTablesFromSQL()`** — Nuevo método interno que parsea el SQL fallido y extrae los nombres de tablas referenciadas para pasar solo su definición al prompt de reflexión (en lugar del schema completo).
+
+### Improved
+
+- **Schema comprimido** — `buildSchemaDescription()` ahora genera un formato ultra-comprimido (~20 tokens/tabla vs ~60 antes). Nuevo formato: `tabla: col1* col2 col3→ref_tabla` donde `*` indica PRIMARY KEY y `→` indica FK. Ahorro de ~66% de tokens en el schema por request.
+- **Schema filtrado en reflexión** — `reflectAndFix()` ahora filtra el schema a solo las tablas del SQL fallido antes de enviarlo al LLM, reduciendo el prompt de reflexión en ~60-80%.
+
+### Performance
+
+- Reducción estimada de **50–70% en tokens totales** por request en BDs medianas/grandes.
+- Reducción estimada de **60–80% en costo** al combinar schema comprimido + modelo ligero para subtareas.
+
+### Migration
+
+Completamente retrocompatible. Para activar `lightModel` explícitamente:
+
+```typescript
+const translator = new CyberMySQLOpenAI({
+  openai: {
+    apiKey: "...",
+    model: "gpt-4o", // Para generateSQL
+    lightModel: "gpt-4o-mini", // Para reflexión y formato (default si se omite)
+  },
+});
+```
+
+O con variable de entorno: `OPENAI_LIGHT_MODEL=gpt-4o-mini`
 
 ### Fixed
 

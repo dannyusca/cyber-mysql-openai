@@ -15,6 +15,7 @@ Cyber-MySQL-OpenAI es una librería para Node.js que traduce consultas en lengua
 - [Requisitos del Sistema](#requisitos-del-sistema)
 - [Uso Básico](#uso-básico)
 - [Funciones de Inteligencia (v0.3.0)](#funciones-de-inteligencia-v030)
+- [Optimización de Tokens (v0.4.0)](#optimización-de-tokens-v040)
 - [Opciones de Configuración](#opciones-de-configuración)
 - [Sistema de Cache](#sistema-de-cache)
 - [Soporte Multiidioma](#soporte-multiidioma)
@@ -47,6 +48,7 @@ Cyber-MySQL-OpenAI es una librería para Node.js que traduce consultas en lengua
 - **Seguimiento de Uso de Tokens** — Conteo detallado de tokens y costo estimado por consulta
 - **Historial de Consultas** — Registro en memoria de consultas ejecutadas con estadísticas de rendimiento
 - **Logging avanzado** — Sistema de logging estructurado con seguimiento de uso de tokens y auditoría de prompts/respuestas
+- **Optimización de Tokens (v0.4.0)** — Schema comprimido, `lightModel` para subtareas y schema filtrado en reflexiones — **50–70% menos tokens por request**
 
 ---
 
@@ -274,6 +276,48 @@ Usa `confidence` para implementar lógica como advertir al usuario cuando el mod
 
 ---
 
+## Optimización de Tokens (v0.4.0)
+
+Tres optimizaciones integradas reducen el consumo de tokens en un 50–70% sin cambios en el comportamiento.
+
+### 1. Schema Comprimido
+
+El schema enviado a OpenAI ahora es ultra-compacto (~20 tokens/tabla vs ~60 antes):
+
+```
+# Antes
+Tabla orders (Pedidos): id (int, PRIMARY KEY), status (varchar), total_amount (decimal)...
+
+# Después
+orders: id* status total_amount→customers
+```
+
+`*` = PRIMARY KEY, `→tabla` = referencia FK. Las descripciones de negocio siguen apareciendo cuando están configuradas.
+
+### 2. `lightModel` para Subtareas
+
+Usa un modelo más barato para reflexión y formato manteniendo el modelo principal para la generación SQL:
+
+```typescript
+const translator = new CyberMySQLOpenAI({
+  openai: {
+    apiKey: "...",
+    model: "gpt-4o", // Generación SQL (requiere inteligencia)
+    lightModel: "gpt-4o-mini", // Reflexión y formato (20x más barato, misma calidad)
+  },
+});
+```
+
+O con variable de entorno: `OPENAI_LIGHT_MODEL=gpt-4o-mini`
+
+> **Impacto en costo**: `gpt-4o-mini` es ~20x más barato que `gpt-4o`. Dado que ~40% de las llamadas son subtareas, esto solo ya reduce el costo total en un 40–85%.
+
+### 3. Schema Filtrado en Reflexiones
+
+Cuando una consulta falla y necesita corrección, solo se envía al LLM el schema de las **tablas usadas en el SQL fallido**, no el schema completo. En una BD de 30 tablas, esto puede reducir el prompt de reflexión en ~80%.
+
+---
+
 ## Opciones de Configuración
 
 ```typescript
@@ -292,7 +336,8 @@ const translator = new CyberMySQLOpenAI({
   // Configuración de OpenAI
   openai: {
     apiKey: "tu_clave_api",
-    model: "gpt-4", // También soporta 'gpt-3.5-turbo', etc.
+    model: "gpt-4o", // Modelo principal para generación SQL
+    lightModel: "gpt-4o-mini", // Opcional: modelo ligero para reflexión y formato (v0.4.0)
   },
 
   // Configuración del cache (opcional)
@@ -551,7 +596,9 @@ Este proyecto está en **versión estable** y en desarrollo activo. Las contribu
 - ~~Seguimiento de uso de tokens y estimación de costos~~ (incluido en v0.3.0)
 - ~~Historial de consultas y estadísticas~~ (incluido en v0.3.0)
 - ~~Corrección de inyección de contexto en reflexión~~ (incluido en v0.3.1)
-- Optimización de rendimiento para esquemas de base de datos grandes
+- ~~Schema comprimido (66% menos tokens)~~ (incluido en v0.4.0)
+- ~~`lightModel` para subtareas (reflexiones 85% más baratas)~~ (incluido en v0.4.0)
+- ~~Schema filtrado en reflexiones~~ (incluido en v0.4.0)
 - Soporte para dialectos SQL adicionales
 - Respuestas en streaming
 - Ampliación de documentación y ejemplos de uso

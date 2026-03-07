@@ -24,11 +24,12 @@ export class ResponseFormatter {
     logger?: Logger,
     businessContext?: string,
     responseStyleInstruction?: string,
+    lightModel?: string, // Modelo ligero para formateo de respuestas
   ) {
     this.openai = new OpenAI({
       apiKey: apiKey,
     });
-    this.model = model;
+    this.model = lightModel || model; // Usar lightModel si está disponible
     this.logger = logger || new Logger();
     this.i18n = new I18n(language);
     this.businessContext = businessContext || "";

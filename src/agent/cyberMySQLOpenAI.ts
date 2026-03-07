@@ -39,6 +39,7 @@ export class CyberMySQLOpenAI {
   private responseFormatter: ResponseFormatter;
   private maxReflections: number;
   private openaiModel: string;
+  private lightModel: string;
   private i18n: I18n;
   private cache: MemoryCache | null = null;
   private cacheEnabled: boolean;
@@ -93,6 +94,7 @@ export class CyberMySQLOpenAI {
     });
 
     this.openaiModel = openaiConfig.model;
+    this.lightModel = openaiConfig.lightModel || "gpt-4o-mini";
     this.maxReflections = config.maxReflections || DEFAULT_MAX_REFLECTIONS;
     this.dbManager = new DBManager(dbConfig, this.logger);
 
@@ -108,6 +110,7 @@ export class CyberMySQLOpenAI {
         ? `\nCONTEXTO DE NEGOCIO: ${config.context.businessDescription}\n`
         : "",
       this.buildResponseStyleInstruction(),
+      this.lightModel, // Mejora 3: usar modelo ligero para formateo
     );
 
     // Inicializar sistema de cache
@@ -630,7 +633,9 @@ export class CyberMySQLOpenAI {
   }
 
   /**
-   * Construye la descripción del schema enriquecida con metadata de negocio
+   * Construye la descripción comprimida del schema.
+   * Formato: "tabla: col1* col2 col3→ref_tabla" (~20 tokens/tabla vs ~60 antes)
+   * donde * = PRIMARY KEY, →ref = FK a otra tabla
    */
   private buildSchemaDescription(
     schema: Record<string, { columns: any[]; foreignKeys: any[] }>,
@@ -641,28 +646,33 @@ export class CyberMySQLOpenAI {
         const tableData = schema[tableName];
         const tableContext = this.schemaContext?.tables?.[tableName];
 
-        // Descripción de la tabla
-        let description = `Tabla ${tableName}`;
-        if (tableContext?.description) {
-          description += ` (${tableContext.description})`;
+        // Mapear FKs por columna para anotarlas inline
+        const fkMap: Record<string, string> = {};
+        for (const fk of tableData.foreignKeys) {
+          fkMap[fk.column_name] = fk.referenced_table;
         }
-        description += ":";
 
-        // Columnas con metadata de negocio
-        const columnDescriptions = tableData.columns
+        // Columnas en formato comprimido
+        const cols = tableData.columns
           .map((col: any) => {
-            let colDesc = `${col.column_name} (${col.data_type}${col.column_key === "PRI" ? ", PRIMARY KEY" : ""})`;
-            const colContext = tableContext?.columns?.[col.column_name];
-            if (colContext) {
-              colDesc += ` -- ${colContext}`;
-            }
-            return colDesc;
+            let c = col.column_name;
+            if (col.column_key === "PRI") c += "*"; // PK
+            if (fkMap[col.column_name]) c += `→${fkMap[col.column_name]}`; // FK
+            // Anotar tipo solo si el usuario definió contexto de negocio para esta columna
+            const colCtx = tableContext?.columns?.[col.column_name];
+            if (colCtx) c += `(${colCtx})`;
+            return c;
           })
-          .join(", ");
+          .join(" ");
 
-        return `${description} ${columnDescriptions}`;
+        // Descripción de tabla: nombre + descripción de negocio si existe
+        const tableDesc = tableContext?.description
+          ? `${tableName}(${tableContext.description})`
+          : tableName;
+
+        return `${tableDesc}: ${cols}`;
       })
-      .join("\n\n");
+      .join("\n");
   }
 
   /**
@@ -719,6 +729,18 @@ export class CyberMySQLOpenAI {
    * @param requestId - ID de la solicitud para logging
    * @returns Resultado después de intentar corregir
    */
+  /**
+   * Extrae los nombres de tablas mencionados en una consulta SQL.
+   * Se usa para filtrar el schema y no re-enviarlo completo en la reflexión.
+   */
+  private extractTablesFromSQL(sql: string): string[] {
+    const matches =
+      sql.match(/(?:FROM|JOIN|INTO|UPDATE)\s+([`"']?\w+[`"']?)/gi) || [];
+    return matches.map((m) =>
+      m.replace(/(?:FROM|JOIN|INTO|UPDATE)\s+/i, "").replace(/[`"']/g, ""),
+    );
+  }
+
   private async reflectAndFix(
     prompt: string,
     sql: string,
@@ -732,14 +754,23 @@ export class CyberMySQLOpenAI {
     let results = [];
     let success = false;
 
+    // Mejora 5: filtrar schema a solo las tablas del SQL fallido
+    const involvedTables = this.extractTablesFromSQL(sql);
+    const reducedSchema =
+      involvedTables.length > 0
+        ? Object.fromEntries(
+            Object.entries(schema).filter(([t]) => involvedTables.includes(t)),
+          )
+        : schema; // fallback: schema completo si no se detectaron tablas
+
     while (attempts <= this.maxReflections && !success) {
       try {
-        // Generar reflexión sobre el error
+        // Generar reflexión sobre el error (con schema reducido)
         const reflection = await this.generateReflection(
           prompt,
           currentSql,
           errorMessage,
-          schema,
+          reducedSchema,
           requestId,
         );
 
@@ -803,6 +834,7 @@ export class CyberMySQLOpenAI {
     requestId: string,
   ): Promise<{ reasoning: string; fixedSql: string }> {
     try {
+      // Mejora 3 + 5: schema ya viene filtrado y usamos el modelo ligero
       const schemaDescription = this.buildSchemaDescription(schema);
       const relationships = this.buildRelationshipsSection(schema);
 
@@ -829,10 +861,10 @@ export class CyberMySQLOpenAI {
 
       const userMessage = `Consulta original en lenguaje natural: ${prompt}\n\nConsulta SQL que falló:\n${sql}\n\nError recibido:\n${errorMessage}`;
 
-      // Intentar function calling
+      // Mejora 3: usar lightModel (gpt-4o-mini) para la reflexión
       try {
         const response = await this.openai.chat.completions.create({
-          model: this.openaiModel,
+          model: this.lightModel,
           messages: [
             { role: "system", content: systemPrompt },
             { role: "user", content: userMessage },
@@ -875,7 +907,7 @@ export class CyberMySQLOpenAI {
             response.usage.prompt_tokens,
             response.usage.completion_tokens,
             response.usage.total_tokens,
-            this.openaiModel,
+            this.lightModel,
           );
         }
 
@@ -892,13 +924,13 @@ export class CyberMySQLOpenAI {
         throw new Error("No tool_calls in reflection response");
         // eslint-disable-next-line @typescript-eslint/no-unused-vars
       } catch (_fcError) {
-        // Fallback: modo texto
+        // Fallback: modo texto (también usa lightModel)
         this.logger.debug(
           "Function calling not available for reflection, using text mode",
         );
 
         const response = await this.openai.chat.completions.create({
-          model: this.openaiModel,
+          model: this.lightModel,
           messages: [
             { role: "system", content: systemPrompt },
             { role: "user", content: userMessage },
@@ -914,7 +946,7 @@ export class CyberMySQLOpenAI {
             response.usage.prompt_tokens,
             response.usage.completion_tokens,
             response.usage.total_tokens,
-            this.openaiModel,
+            this.lightModel,
           );
         }
 

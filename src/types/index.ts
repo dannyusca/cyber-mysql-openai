@@ -36,6 +36,7 @@ export interface DBConfig {
 export interface OpenAIConfig {
   apiKey: string;
   model: string;
+  lightModel?: string; // Modelo más barato para subtareas (reflexión, formato). Default: gpt-4o-mini
 }
 
 // Configuración del sistema de cache
