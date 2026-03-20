@@ -2,13 +2,28 @@
 
 **Intelligent natural language to SQL translator for Node.js**
 
+[![npm version](https://img.shields.io/npm/v/cyber-mysql-openai.svg?style=flat-square)](https://www.npmjs.com/package/cyber-mysql-openai)
+[![License: MIT](https://img.shields.io/badge/License-MIT-blue.svg?style=flat-square)](https://opensource.org/licenses/MIT)
+[![TypeScript](https://img.shields.io/badge/%3C%2F%3E-TypeScript-%230074c1.svg?style=flat-square)](https://www.typescriptlang.org/)
+
+<br />
+
+<div align="center">
+  <p>Si esta librería te ahorró horas de desarrollo, considera invitarme un café:</p>
+  <a href="https://buymeacoffee.com/dannyusca" target="_blank">
+    <img src="https://cdn.buymeacoffee.com/buttons/v2/default-yellow.png" alt="Buy Me A Coffee" style="height: 50px !important;width: 217px !important;" >
+  </a>
+</div>
+
+<br />
+
 Cyber-MySQL-OpenAI is a powerful Node.js library that translates natural language queries into valid SQL, executes them against MySQL databases, and returns results accompanied by human-readable explanations — all powered by OpenAI.
 
 [Spanish documentation / Documentación en español](README.es.md)
 
 ---
 
-## Table of Contents
+## <img src="https://api.iconify.design/mdi:format-list-bulleted.svg" width="28" height="28" style="vertical-align: middle; margin-right: 8px;" /> Table of Contents
 
 - [Features](#features)
 - [Installation](#installation)
@@ -26,7 +41,7 @@ Cyber-MySQL-OpenAI is a powerful Node.js library that translates natural languag
 
 ---
 
-## Features
+## <img src="https://api.iconify.design/mdi:lightning-bolt.svg" width="28" height="28" style="vertical-align: middle; margin-right: 8px;" /> Features
 
 - **Natural language to SQL translation** — Converts plain-text questions into valid SQL queries
 - **Automatic execution** — Runs generated queries directly against your MySQL database
@@ -52,7 +67,7 @@ Cyber-MySQL-OpenAI is a powerful Node.js library that translates natural languag
 
 ---
 
-## Installation
+## <img src="https://api.iconify.design/mdi:download.svg" width="28" height="28" style="vertical-align: middle; margin-right: 8px;" /> Installation
 
 ```bash
 npm install cyber-mysql-openai
@@ -60,7 +75,7 @@ npm install cyber-mysql-openai
 
 ---
 
-## System Requirements
+## <img src="https://api.iconify.design/mdi:cog.svg" width="28" height="28" style="vertical-align: middle; margin-right: 8px;" /> System Requirements
 
 | Requirement  | Details                                              |
 | ------------ | ---------------------------------------------------- |
@@ -70,7 +85,7 @@ npm install cyber-mysql-openai
 
 ---
 
-## Basic Usage
+## <img src="https://api.iconify.design/mdi:lightbulb-on.svg" width="28" height="28" style="vertical-align: middle; margin-right: 8px;" /> Basic Usage
 
 ```typescript
 import { CyberMySQLOpenAI } from "cyber-mysql-openai";
@@ -160,7 +175,7 @@ const translator = new CyberMySQLOpenAI({
 
 ---
 
-## Intelligence Features (v0.3.0)
+## <img src="https://api.iconify.design/mdi:lightbulb.svg" width="28" height="28" style="vertical-align: middle; margin-right: 8px;" /> Intelligence Features (v0.3.0)
 
 ### 1. Custom Instructions & Response Style
 
@@ -293,7 +308,7 @@ Use `confidence` to implement logic like warning users when the model is unsure,
 
 ---
 
-## Token Optimization (v0.3.2)
+## <img src="https://api.iconify.design/mdi:flash.svg" width="28" height="28" style="vertical-align: middle; margin-right: 8px;" /> Token Optimization (v0.3.2)
 
 Three built-in optimizations reduce token consumption by 50–70% with zero behavioral changes.
 
@@ -335,7 +350,7 @@ When a query fails and needs correction, only the schema of the **tables used in
 
 ---
 
-## Configuration Options
+## <img src="https://api.iconify.design/mdi:tune.svg" width="28" height="28" style="vertical-align: middle; margin-right: 8px;" /> Configuration Options
 
 ```typescript
 const translator = new CyberMySQLOpenAI({
@@ -376,7 +391,7 @@ const translator = new CyberMySQLOpenAI({
 
 ---
 
-## Cache System
+## <img src="https://api.iconify.design/mdi:database.svg" width="28" height="28" style="vertical-align: middle; margin-right: 8px;" /> Cache System
 
 Cyber-MySQL-OpenAI includes an optional in-memory cache that significantly improves response times for repeated or similar queries.
 
@@ -459,7 +474,7 @@ For additional examples, see [docs/cache-examples.md](docs/cache-examples.md).
 
 ---
 
-## Multi-Language Support
+## <img src="https://api.iconify.design/mdi:translate.svg" width="28" height="28" style="vertical-align: middle; margin-right: 8px;" /> Multi-Language Support
 
 The library supports English and Spanish for all responses, error messages, and OpenAI prompts. The language can be configured at initialization or changed dynamically at runtime.
 
@@ -500,7 +515,7 @@ console.log(spanish.naturalResponse); // Response in Spanish
 
 ---
 
-## API Reference
+## <img src="https://api.iconify.design/mdi:book-open.svg" width="28" height="28" style="vertical-align: middle; margin-right: 8px;" /> API Reference
 
 ### CyberMySQLOpenAI
 
@@ -558,7 +573,7 @@ console.log("Detailed response:", result.detailedResponse);
 
 ---
 
-## Troubleshooting
+## <img src="https://api.iconify.design/mdi:comment-question.svg" width="28" height="28" style="vertical-align: middle; margin-right: 8px;" /> Troubleshooting
 
 ### Nodemon Restarts
 
@@ -594,7 +609,7 @@ const translator = new CyberMySQLOpenAI({
 
 ---
 
-## Project Status
+## <img src="https://api.iconify.design/mdi:information.svg" width="28" height="28" style="vertical-align: middle; margin-right: 8px;" /> Project Status
 
 This project is in **stable release** and under active development. Contributions and feedback are welcome.
 
@@ -625,6 +640,6 @@ This project is in **stable release** and under active development. Contribution
 
 ---
 
-## License
+## <img src="https://api.iconify.design/mdi:certificate.svg" width="28" height="28" style="vertical-align: middle; margin-right: 8px;" /> License
 
 MIT

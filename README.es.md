@@ -2,13 +2,28 @@
 
 **Traductor inteligente de lenguaje natural a SQL para Node.js**
 
+[![npm version](https://img.shields.io/npm/v/cyber-mysql-openai.svg?style=flat-square)](https://www.npmjs.com/package/cyber-mysql-openai)
+[![License: MIT](https://img.shields.io/badge/License-MIT-blue.svg?style=flat-square)](https://opensource.org/licenses/MIT)
+[![TypeScript](https://img.shields.io/badge/%3C%2F%3E-TypeScript-%230074c1.svg?style=flat-square)](https://www.typescriptlang.org/)
+
+<br />
+
+<div align="center">
+  <p>Si esta librería te ahorró horas de desarrollo, considera invitarme un café:</p>
+  <a href="https://buymeacoffee.com/dannyusca" target="_blank">
+    <img src="https://cdn.buymeacoffee.com/buttons/v2/default-yellow.png" alt="Buy Me A Coffee" style="height: 50px !important;width: 217px !important;" >
+  </a>
+</div>
+
+<br />
+
 Cyber-MySQL-OpenAI es una librería para Node.js que traduce consultas en lenguaje natural a SQL válido, ejecuta las consultas en MySQL y devuelve los resultados acompañados de explicaciones comprensibles, todo impulsado por OpenAI.
 
 [English documentation](README.md)
 
 ---
 
-## Tabla de Contenidos
+## <img src="https://api.iconify.design/mdi:format-list-bulleted.svg" width="28" height="28" style="vertical-align: middle; margin-right: 8px;" /> Tabla de Contenidos
 
 - [Características](#características)
 - [Instalación](#instalación)
@@ -26,7 +41,7 @@ Cyber-MySQL-OpenAI es una librería para Node.js que traduce consultas en lengua
 
 ---
 
-## Características
+## <img src="https://api.iconify.design/mdi:lightning-bolt.svg" width="28" height="28" style="vertical-align: middle; margin-right: 8px;" /> Características
 
 - **Traducción de lenguaje natural a SQL** — Convierte preguntas en texto plano a consultas SQL válidas
 - **Ejecución automática** — Ejecuta las consultas generadas directamente en tu base de datos MySQL
@@ -52,7 +67,7 @@ Cyber-MySQL-OpenAI es una librería para Node.js que traduce consultas en lengua
 
 ---
 
-## Instalación
+## <img src="https://api.iconify.design/mdi:download.svg" width="28" height="28" style="vertical-align: middle; margin-right: 8px;" /> Instalación
 
 ```bash
 npm install cyber-mysql-openai
@@ -60,7 +75,7 @@ npm install cyber-mysql-openai
 
 ---
 
-## Requisitos del Sistema
+## <img src="https://api.iconify.design/mdi:cog.svg" width="28" height="28" style="vertical-align: middle; margin-right: 8px;" /> Requisitos del Sistema
 
 | Requisito         | Detalles                                               |
 | ----------------- | ------------------------------------------------------ |
@@ -70,7 +85,7 @@ npm install cyber-mysql-openai
 
 ---
 
-## Uso Básico
+## <img src="https://api.iconify.design/mdi:lightbulb-on.svg" width="28" height="28" style="vertical-align: middle; margin-right: 8px;" /> Uso Básico
 
 ```typescript
 import { CyberMySQLOpenAI } from "cyber-mysql-openai";
@@ -113,7 +128,7 @@ main();
 
 ---
 
-## Funciones de Inteligencia (v0.3.0)
+## <img src="https://api.iconify.design/mdi:lightbulb.svg" width="28" height="28" style="vertical-align: middle; margin-right: 8px;" /> Funciones de Inteligencia (v0.3.0)
 
 ### 1. Instrucciones Personalizadas y Estilo de Respuesta
 
@@ -276,7 +291,7 @@ Usa `confidence` para implementar lógica como advertir al usuario cuando el mod
 
 ---
 
-## Optimización de Tokens (v0.3.2)
+## <img src="https://api.iconify.design/mdi:flash.svg" width="28" height="28" style="vertical-align: middle; margin-right: 8px;" /> Optimización de Tokens (v0.3.2)
 
 Tres optimizaciones integradas reducen el consumo de tokens en un 50–70% sin cambios en el comportamiento.
 
@@ -318,7 +333,7 @@ Cuando una consulta falla y necesita corrección, solo se envía al LLM el schem
 
 ---
 
-## Opciones de Configuración
+## <img src="https://api.iconify.design/mdi:tune.svg" width="28" height="28" style="vertical-align: middle; margin-right: 8px;" /> Opciones de Configuración
 
 ```typescript
 const translator = new CyberMySQLOpenAI({
@@ -359,7 +374,7 @@ const translator = new CyberMySQLOpenAI({
 
 ---
 
-## Sistema de Cache
+## <img src="https://api.iconify.design/mdi:database.svg" width="28" height="28" style="vertical-align: middle; margin-right: 8px;" /> Sistema de Cache
 
 Cyber-MySQL-OpenAI incluye un sistema de cache en memoria opcional que mejora significativamente los tiempos de respuesta para consultas repetidas o similares.
 
@@ -442,7 +457,7 @@ Para más ejemplos, consulta [docs/cache-examples.md](docs/cache-examples.md).
 
 ---
 
-## Soporte Multiidioma
+## <img src="https://api.iconify.design/mdi:translate.svg" width="28" height="28" style="vertical-align: middle; margin-right: 8px;" /> Soporte Multiidioma
 
 La librería soporta español e inglés para todas las respuestas, mensajes de error y prompts de OpenAI. El idioma se puede configurar al inicializar o cambiar dinámicamente en tiempo de ejecución.
 
@@ -483,7 +498,7 @@ console.log(englishResult.naturalResponse); // Respuesta en inglés
 
 ---
 
-## Referencia de API
+## <img src="https://api.iconify.design/mdi:book-open.svg" width="28" height="28" style="vertical-align: middle; margin-right: 8px;" /> Referencia de API
 
 ### CyberMySQLOpenAI
 
@@ -538,7 +553,7 @@ console.log("Respuesta detallada:", result.detailedResponse);
 
 ---
 
-## Solución de Problemas
+## <img src="https://api.iconify.design/mdi:comment-question.svg" width="28" height="28" style="vertical-align: middle; margin-right: 8px;" /> Solución de Problemas
 
 ### Reinicios de Nodemon
 
@@ -574,7 +589,7 @@ const translator = new CyberMySQLOpenAI({
 
 ---
 
-## Estado del Proyecto
+## <img src="https://api.iconify.design/mdi:information.svg" width="28" height="28" style="vertical-align: middle; margin-right: 8px;" /> Estado del Proyecto
 
 Este proyecto está en **versión estable** y en desarrollo activo. Las contribuciones y comentarios son bienvenidos.
 
@@ -605,7 +620,7 @@ Este proyecto está en **versión estable** y en desarrollo activo. Las contribu
 
 ---
 
-## Licencia
+## <img src="https://api.iconify.design/mdi:certificate.svg" width="28" height="28" style="vertical-align: middle; margin-right: 8px;" /> Licencia
 
 MIT
 
