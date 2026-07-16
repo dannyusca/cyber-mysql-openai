@@ -27,6 +27,7 @@ export {
   TranslationResult,
   SQLResult,
   NaturalResponseOptions,
+  QueryStreamChunk,
   Reflection,
   LogLevel,
   CacheStats,

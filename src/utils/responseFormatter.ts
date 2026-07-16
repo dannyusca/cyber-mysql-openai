@@ -150,6 +150,97 @@ export class ResponseFormatter {
   }
 
   /**
+   * Genera un stream de explicación en lenguaje natural a partir de los resultados de base de datos
+   */
+  async *generateNaturalResponseStream(
+    sql: string,
+    results: any[] | Record<string, any>,
+    options: NaturalResponseOptions = {},
+  ): AsyncGenerator<string, void, unknown> {
+    const requestId = uuidv4();
+    const detailed = options.detailed || false;
+
+    try {
+      if (!results || (Array.isArray(results) && results.length === 0)) {
+        yield this.i18n.getMessage("responses", "noResultsFound");
+        return;
+      }
+
+      const resultData =
+        typeof results === "string"
+          ? results
+          : JSON.stringify(results, null, 2);
+
+      const isMultipleRows = Array.isArray(results) && results.length > 1;
+      const numberOfRows = Array.isArray(results) ? results.length : 1;
+      const fields =
+        Array.isArray(results) && results.length > 0
+          ? Object.keys(results[0]).join(", ")
+          : results && typeof results === "object"
+            ? Object.keys(results).join(", ")
+            : "";
+
+      const prompt = detailed
+        ? this.generateDetailedPrompt(
+            sql,
+            resultData,
+            isMultipleRows,
+            numberOfRows,
+            fields,
+          )
+        : this.generateSimplePrompt(sql, resultData);
+
+      this.logger.debug("Generating natural response stream", {
+        sql,
+        detailed,
+        language: this.i18n.getLanguage(),
+      });
+
+      try {
+        const stream = await this.openai.chat.completions.create({
+          model: this.model,
+          messages: [{ role: "user", content: prompt }],
+          stream: true,
+        });
+
+        let fullText = "";
+
+        for await (const chunk of stream) {
+          const content = chunk.choices[0]?.delta?.content || "";
+          if (content) {
+            fullText += content;
+            yield content;
+          }
+        }
+
+        // Registrar prompt y respuesta si hay logger
+        if (this.logger) {
+          this.logger.logPromptAndResponse(
+            requestId,
+            "format-response-stream",
+            prompt,
+            fullText,
+            true,
+            detailed ? 2 : 1,
+            this.model,
+          );
+        }
+      } catch (error: any) {
+        this.logger.error(
+          "Error calling OpenAI to generate natural response stream:",
+          error,
+        );
+        yield detailed
+          ? this.i18n.getMessage("errors", "openaiError")
+          : this.i18n.getMessage("responses", "queryCompleted");
+      }
+    } catch (error: any) {
+      this.logger.error("General error generating natural response stream:", error);
+      yield this.i18n.getMessage("responses", "queryCompleted");
+    }
+  }
+
+  /**
    * Genera un prompt para respuestas simples y directas
    */
   private generateSimplePrompt(sql: string, resultData: string): string {

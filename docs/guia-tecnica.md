@@ -461,6 +461,29 @@ const resultado = await translator.query(
 console.log(resultado.naturalResponse); // Respuesta en español
 ```
 
+## Sistema de Streaming y Modo Agéntico (v0.3.4)
+
+### 1. Streaming de Respuestas
+Para reducir a cero la latencia percibida, la librería ahora soporta streaming de explicaciones en lenguaje natural en tiempo real:
+
+* **Callback `onChunk`**: Agrega el callback `onChunk` en las opciones del método `query()`. El callback será invocado progresivamente por cada fragmento de texto recibido desde OpenAI.
+* **Método `queryStream()`**: Devuelve un `AsyncGenerator<QueryStreamChunk, TranslationResult>` que emite eventos específicos del ciclo de vida de la consulta:
+  * `sql`: Cuando se genera o corrige la consulta SQL.
+  * `results`: Cuando se obtienen los resultados de la base de datos.
+  * `chunk`: Fragmentos de texto de la explicación explicativa en lenguaje natural.
+  * `reflection`: Eventos del bucle de autorreflexión y autocorrección.
+  * `done`: Metadatos finales y estadísticas de uso de tokens.
+
+### 2. Modo Agéntico Multi-Paso (Estilo MCP)
+Configurando `mode: 'agentic'` en las opciones iniciales, la librería cambia de un paradigma One-Shot (inyección del esquema completo en el prompt inicial) a un paradigma Multi-Paso agéntico:
+* **Funcionamiento**: La librería no inyecta el esquema de base de datos al inicio. En su lugar, el LLM invoca herramientas dinámicamente (`list_tables`, `describe_table` y `execute_sql_query`) según lo necesite para resolver la pregunta del usuario.
+* **Uso recomendado**: Diseñado especialmente para bases de datos empresariales de gran escala que exceden los límites de tokens o el presupuesto del contexto de entrada de OpenAI.
+
+### 3. Optimización del Bucle de Reflexión
+Se han incorporado dos mejoras clave de rendimiento en el sistema de autocorrección (`maxReflections`):
+* **Pruebas de Candidatos en Paralelo**: Ante un error, el LLM propone hasta 3 alternativas de SQL en una sola llamada. Éstas se ejecutan en paralelo en la DB; la primera consulta exitosa es tomada como la solución del error, reduciendo el bucle de autorreflexión a un único roundtrip del LLM.
+* **Sugerencias Dinámicas de Esquema**: Analizamos el mensaje de error de la base de datos (tablas o columnas inexistentes) y calculamos la distancia de Levenshtein contra los nombres correctos en el esquema actual, inyectando sugerencias (e.g., *"¿Quisiste decir 'created_at'?"*) directamente en el prompt del LLM.
+
 ---
 
 Esta guía técnica está diseñada para ayudarte a navegar y extender el proyecto `cyber-mysql-openai`. Si encuentras algún problema o tienes preguntas, revisa las pruebas y ejemplos existentes como referencia.

@@ -5,6 +5,7 @@
 [![npm version](https://img.shields.io/npm/v/cyber-mysql-openai.svg?style=flat-square)](https://www.npmjs.com/package/cyber-mysql-openai)
 [![License: MIT](https://img.shields.io/badge/License-MIT-blue.svg?style=flat-square)](https://opensource.org/licenses/MIT)
 [![TypeScript](https://img.shields.io/badge/%3C%2F%3E-TypeScript-%230074c1.svg?style=flat-square)](https://www.typescriptlang.org/)
+[![Ask DeepWiki](https://deepwiki.com/badge.svg)](https://deepwiki.com/dannyusca/cyber-mysql-openai)
 
 <br />
 
@@ -31,6 +32,7 @@ Cyber-MySQL-OpenAI es una librería para Node.js que traduce consultas en lengua
 - [Uso Básico](#uso-básico)
 - [Funciones de Inteligencia (v0.3.0)](#funciones-de-inteligencia-v030)
 - [Optimización de Tokens (v0.3.2)](#optimización-de-tokens-v032)
+- [Streaming y Modo Agéntico (v0.3.4)](#streaming-y-modo-agéntico-v034)
 - [Opciones de Configuración](#opciones-de-configuración)
 - [Sistema de Cache](#sistema-de-cache)
 - [Soporte Multiidioma](#soporte-multiidioma)
@@ -330,6 +332,68 @@ O con variable de entorno: `OPENAI_LIGHT_MODEL=gpt-4o-mini`
 ### 3. Schema Filtrado en Reflexiones
 
 Cuando una consulta falla y necesita corrección, solo se envía al LLM el schema de las **tablas usadas en el SQL fallido**, no el schema completo. En una BD de 30 tablas, esto puede reducir el prompt de reflexión en ~80%.
+
+---
+
+## <img src="https://api.iconify.design/mdi:connection.svg" width="28" height="28" style="vertical-align: middle; margin-right: 8px;" /> Streaming y Modo Agéntico (v0.3.4)
+
+Esta versión introduce **streaming de respuestas en tiempo real** para reducir la latencia percibida del usuario a cero, y un **Modo Agéntico Multi-Paso** diseñado para bases de datos complejas o masivas de nivel empresarial.
+
+### 1. Streaming de Respuestas (Callbacks y Generadores Asíncronos)
+
+En lugar de esperar a que se genere toda la explicación en lenguaje natural, puedes consumirla palabra por palabra.
+
+#### Opción A: Callback de Streaming (onChunk) - Compatible Hacia Atrás
+Pasa un callback `onChunk` al parámetro de opciones de `query()`:
+
+```typescript
+const resultado = await translator.query(
+  "¿Cuál es el producto más caro?",
+  {
+    onChunk: (chunk) => {
+      process.stdout.write(chunk);
+    }
+  }
+);
+```
+
+#### Opción B: Generador Asíncrono (queryStream)
+Usa `queryStream()` para obtener un control total sobre los eventos del ciclo de vida del agente paso a paso:
+
+```typescript
+const stream = translator.queryStream("Lista nuestros 5 últimos pedidos");
+
+for await (const chunk of stream) {
+  if (chunk.type === "sql") {
+    console.log("SQL Generado:", chunk.sql);
+  } else if (chunk.type === "results") {
+    console.log("Resultados de Base de Datos:", chunk.results);
+  } else if (chunk.type === "chunk" && chunk.content) {
+    process.stdout.write(chunk.content); // Explicación de resultados en tiempo real
+  } else if (chunk.type === "done" && chunk.metadata) {
+    console.log("\nEjecución finalizada en", chunk.metadata.executionTime + "ms");
+  }
+}
+```
+
+### 2. Modo Agéntico Multi-Paso (estilo MCP)
+
+Para esquemas de bases de datos de gran tamaño que exceden las ventanas de contexto del modelo, habilita `mode: "agentic"`. En lugar de inyectar todo el esquema al inicio (One-Shot), el agente utiliza herramientas de inspección dinámicas sobre la marcha:
+
+```typescript
+const agente = new CyberMySQLOpenAI({
+  database: { ... },
+  openai: { apiKey: "..." },
+  mode: "agentic" // "direct" (One-Shot) o "agentic" (Exploración de herramientas Multi-Paso)
+});
+```
+
+* **Exploración de Herramientas**: El agente invoca secuencialmente herramientas internas (`list_tables`, `describe_table`, `execute_sql_query`) para explorar tablas y esquemas dinámicamente, ejecutando y explicando solo lo necesario.
+
+### 3. Optimizaciones del Bucle de Reflexión
+
+* **Pruebas de Candidatos en Paralelo**: Ante un fallo en la ejecución de SQL, el bucle de reflexión genera hasta 3 sentencias SQL candidatas en un solo prompt y las ejecuta en paralelo en la base de datos. Se elige la primera que corra con éxito, resolviendo errores de reflexión en un único roundtrip de LLM.
+* **Sugerencias de Levenshtein**: La librería calcula automáticamente las distancias de Levenshtein en nombres de tablas o columnas con errores ortográficos e inyecta recomendaciones dinámicas (ej. *"(Hint: ¿Quisiste decir 'created_at'?)"*) en el prompt de error, permitiendo al modelo autocorregirse al primer intento.
 
 ---
 

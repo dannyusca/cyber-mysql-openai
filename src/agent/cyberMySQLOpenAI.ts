@@ -9,6 +9,8 @@ import {
   CacheStats,
   SchemaContext,
   TokenUsage,
+  QueryStreamChunk,
+  Reflection,
 } from "../types";
 import {
   DEFAULT_OPENAI_CONFIG,
@@ -44,6 +46,7 @@ export class CyberMySQLOpenAI {
   private cache: MemoryCache | null = null;
   private cacheEnabled: boolean;
   private schemaContext: SchemaContext | undefined;
+  private mode: "direct" | "agentic";
 
   // Cache de schema
   private cachedSchema: Record<
@@ -97,6 +100,7 @@ export class CyberMySQLOpenAI {
     this.lightModel = openaiConfig.lightModel || "gpt-4o-mini";
     this.maxReflections = config.maxReflections || DEFAULT_MAX_REFLECTIONS;
     this.dbManager = new DBManager(dbConfig, this.logger);
+    this.mode = config.mode || "direct";
 
     // Almacenar contexto de negocio (antes de ResponseFormatter para que buildResponseStyleInstruction funcione)
     this.schemaContext = config.context;
@@ -140,6 +144,7 @@ export class CyberMySQLOpenAI {
       language: this.i18n.getLanguage(),
       cacheEnabled: this.cacheEnabled,
       schemaTTL: this.schemaTTL,
+      mode: this.mode,
       hasContext: !!config.context,
       hasCustomInstructions: !!config.context?.customInstructions?.length,
       hasExamples: !!config.context?.examples?.length,
@@ -156,22 +161,227 @@ export class CyberMySQLOpenAI {
     prompt: string,
     options: NaturalResponseOptions = {},
   ): Promise<TranslationResult> {
+    const stream = this.queryStream(prompt, options);
+    let finalResult: TranslationResult | undefined;
+    for await (const chunk of stream) {
+      if (chunk.type === "chunk" && options.onChunk && chunk.content) {
+        options.onChunk(chunk.content);
+      }
+      if (chunk.type === "done" && chunk.metadata) {
+        finalResult = chunk.metadata as TranslationResult;
+      }
+    }
+    if (!finalResult) {
+      throw new Error("Query stream failed to complete");
+    }
+    return finalResult;
+  }
+
+  /**
+   * Procesa una consulta en lenguaje natural devolviendo un generador asíncrono
+   * para consumo de eventos y texto en tiempo real (streaming)
+   * @param prompt - Consulta en lenguaje natural
+   * @param options - Opciones adicionales
+   * @returns Generador asíncrono de eventos de consulta
+   */
+  async *queryStream(
+    prompt: string,
+    options: NaturalResponseOptions = {},
+  ): AsyncGenerator<QueryStreamChunk, TranslationResult, unknown> {
     const requestId = uuidv4();
     const startTime = Date.now();
+    const tokenAccumulator: TokenUsage = {
+      promptTokens: 0,
+      completionTokens: 0,
+      totalTokens: 0,
+    };
+
+    if (this.mode === "agentic") {
+      this.logger.info("Processing natural language query in agentic mode", { prompt });
+      const messages: any[] = [
+        {
+          role: "system",
+          content: "You are an agentic database explorer. Your goal is to answer the user's natural language question by exploring the database tables, retrieving schemas when necessary, executing queries, and providing a natural explanation of the results. Always use tools to inspect tables and execute queries."
+        },
+        { role: "user", content: prompt }
+      ];
+
+      const tools = [
+        {
+          type: "function" as const,
+          function: {
+            name: "list_tables",
+            description: "List all table names in the database schema",
+            parameters: { type: "object", properties: {} }
+          }
+        },
+        {
+          type: "function" as const,
+          function: {
+            name: "describe_table",
+            description: "Get detailed columns information for a specific table",
+            parameters: {
+              type: "object",
+              properties: {
+                table_name: { type: "string", description: "Table name to describe" }
+              },
+              required: ["table_name"]
+            }
+          }
+        },
+        {
+          type: "function" as const,
+          function: {
+            name: "execute_sql_query",
+            description: "Execute a SELECT SQL query on the database and return results",
+            parameters: {
+              type: "object",
+              properties: {
+                sql: { type: "string", description: "SELECT query to run" }
+              },
+              required: ["sql"]
+            }
+          }
+        }
+      ];
+
+      let loopCount = 0;
+      let success = false;
+      let sql = "";
+      let results: any[] = [];
+
+      while (loopCount < 5 && !success) {
+        loopCount++;
+        const response = await this.openai.chat.completions.create({
+          model: this.openaiModel,
+          messages,
+          tools,
+          tool_choice: "auto"
+        });
+
+        if (response.usage) {
+          this.accumulateTokens(tokenAccumulator, response.usage);
+        }
+
+        const choice = response.choices[0];
+        if (choice.message.tool_calls && choice.message.tool_calls.length > 0) {
+          messages.push(choice.message);
+
+          for (const toolCall of choice.message.tool_calls) {
+            const tc = toolCall as any;
+            const name = tc.function.name;
+            const args = JSON.parse(tc.function.arguments);
+
+            if (name === "list_tables") {
+              this.logger.debug("Agent called list_tables");
+              const dbSchema = await this.getSchemaWithCache();
+              const tableNames = Object.keys(dbSchema);
+              messages.push({
+                role: "tool",
+                tool_call_id: toolCall.id,
+                name,
+                content: JSON.stringify({ tables: tableNames })
+              });
+              yield { type: "chunk", content: `\n[Agent]: Listando tablas...\n` };
+            } else if (name === "describe_table") {
+              this.logger.debug("Agent called describe_table", { table: args.table_name });
+              const columns = await this.dbManager.getTableColumns(args.table_name);
+              messages.push({
+                role: "tool",
+                tool_call_id: toolCall.id,
+                name,
+                content: JSON.stringify({ table: args.table_name, columns })
+              });
+              yield { type: "chunk", content: `\n[Agent]: Describiendo tabla '${args.table_name}'...\n` };
+            } else if (name === "execute_sql_query") {
+              this.logger.debug("Agent called execute_sql_query", { sql: args.sql });
+              sql = args.sql;
+              yield { type: "sql", sql };
+
+              try {
+                results = await this.dbManager.executeReadOnlyQuery(args.sql);
+                success = true;
+                yield { type: "results", results };
+                messages.push({
+                  role: "tool",
+                  tool_call_id: toolCall.id,
+                  name,
+                  content: JSON.stringify({ results })
+                });
+                yield { type: "chunk", content: `\n[Agent]: Ejecutando consulta SQL...\n` };
+              } catch (err) {
+                messages.push({
+                  role: "tool",
+                  tool_call_id: toolCall.id,
+                  name,
+                  content: JSON.stringify({ error: (err as Error).message })
+                });
+                yield { type: "chunk", content: `\n[Agent]: Fallo al ejecutar SQL: ${(err as Error).message}\n` };
+              }
+            }
+          }
+        } else {
+          const text = choice.message.content || "";
+          yield { type: "chunk", content: text };
+          break;
+        }
+      }
+
+      let naturalResponseAccumulator = "";
+      if (success) {
+        const responseStream = this.responseFormatter.generateNaturalResponseStream(sql, results, options);
+        for await (const chunk of responseStream) {
+          naturalResponseAccumulator += chunk;
+          yield { type: "chunk", content: chunk };
+        }
+      } else {
+        const errorMsg = `No se pudo obtener resultados en modo agéntico.`;
+        naturalResponseAccumulator = errorMsg;
+        yield { type: "chunk", content: errorMsg };
+      }
+
+      const executionTime = Date.now() - startTime;
+      if (tokenAccumulator.totalTokens > 0) {
+        tokenAccumulator.estimatedCost = this.estimateTokenCost(
+          tokenAccumulator.promptTokens,
+          tokenAccumulator.completionTokens,
+        );
+      }
+
+      const finalResult: TranslationResult = {
+        sql,
+        results,
+        reflections: [],
+        attempts: loopCount,
+        success,
+        naturalResponse: naturalResponseAccumulator,
+        executionTime,
+        fromCache: false,
+        tokenUsage: tokenAccumulator.totalTokens > 0 ? tokenAccumulator : undefined,
+      };
+
+      yield { type: "done", metadata: finalResult };
+
+      this.queryHistory.addRecord({
+        id: requestId,
+        timestamp: new Date(),
+        naturalQuery: prompt,
+        generatedSQL: sql,
+        success,
+        executionTime,
+        fromCache: false,
+        tokenUsage: finalResult.tokenUsage,
+      });
+
+      return finalResult;
+    }
 
     try {
-      this.logger.info("Processing natural language query", { prompt });
+      this.logger.info("Processing natural language query in direct mode", { prompt });
 
       // Paso 1: Obtener el esquema de la base de datos (con cache)
       const schema = await this.getSchemaWithCache();
       const schemaHash = this.generateSchemaHash(schema);
-
-      // Acumulador de tokens para este request
-      const tokenAccumulator: TokenUsage = {
-        promptTokens: 0,
-        completionTokens: 0,
-        totalTokens: 0,
-      };
 
       // Paso 2: Intentar obtener resultado del cache
       if (this.cache && this.cacheEnabled && !options.bypassCache) {
@@ -191,7 +401,11 @@ export class CyberMySQLOpenAI {
             },
           );
 
-          return {
+          yield { type: "sql", sql: cachedResult.sql };
+          yield { type: "results", results: cachedResult.results };
+          yield { type: "chunk", content: cachedResult.naturalResponse };
+
+          const finalResult: TranslationResult = {
             sql: cachedResult.sql,
             results: cachedResult.results,
             reflections: [],
@@ -201,6 +415,8 @@ export class CyberMySQLOpenAI {
             executionTime,
             fromCache: true,
           };
+          yield { type: "done", metadata: finalResult };
+          return finalResult;
         }
 
         this.logger.info(
@@ -218,6 +434,8 @@ export class CyberMySQLOpenAI {
       let sql = generateResult.sql;
       const confidence = generateResult.confidence;
 
+      yield { type: "sql", sql };
+
       // Paso 3.5: Validar la query generada
       const validation = validateQuery(sql, schema);
       if (validation.warnings.length > 0) {
@@ -225,29 +443,19 @@ export class CyberMySQLOpenAI {
           warnings: validation.warnings,
         });
       }
-      if (validation.suggestions.length > 0) {
-        this.logger.debug("Sugerencias de validación de query", {
-          suggestions: validation.suggestions,
-        });
-      }
-      if (!validation.valid) {
-        this.logger.error("Validación de query fallida", {
-          errors: validation.errors,
-        });
-        // No bloquear — dejar que la DB devuelva el error real para auto-corrección
-      }
 
       // Paso 4: Ejecutar la consulta SQL
-      let results;
-      let reflections = [];
+      let results: any[] = [];
+      let reflections: Reflection[] = [];
       let attempts = 0;
       let success = false;
 
       try {
         results = await this.dbManager.executeReadOnlyQuery(sql);
         success = true;
+        yield { type: "results", results };
       } catch (error) {
-        // Si falla, intentar reflexionar y corregir
+        yield { type: "reflection", content: `Error ejecutando SQL: ${(error as Error).message}. Iniciando autorreflexión...` };
         this.logger.warn("Error executing SQL, attempting to reflect and fix", {
           error: (error as Error).message,
         });
@@ -264,11 +472,15 @@ export class CyberMySQLOpenAI {
         reflections = reflectionResult.reflections;
         attempts = reflectionResult.attempts;
 
+        yield { type: "sql", sql };
+
         if (reflectionResult.success) {
           results = reflectionResult.results;
           success = true;
+          yield { type: "results", results };
         } else {
           results = [];
+          yield { type: "results", results };
           this.logger.error("Failed to execute query after reflection", {
             attempts,
           });
@@ -276,27 +488,47 @@ export class CyberMySQLOpenAI {
       }
 
       // Paso 5: Generar respuesta en lenguaje natural
-      let naturalResponse = this.responseFormatter.generateSimpleResponse(
-        sql,
-        results,
-      );
-
-      if (!naturalResponse) {
-        naturalResponse = await this.responseFormatter.generateNaturalResponse(
+      let naturalResponseAccumulator = "";
+      if (success) {
+        const simpleResponse = this.responseFormatter.generateSimpleResponse(
           sql,
           results,
-          { detailed: false },
         );
+
+        if (simpleResponse) {
+          naturalResponseAccumulator = simpleResponse;
+          yield { type: "chunk", content: simpleResponse };
+        } else {
+          const responseStream = this.responseFormatter.generateNaturalResponseStream(
+            sql,
+            results,
+            { detailed: false },
+          );
+          for await (const chunk of responseStream) {
+            naturalResponseAccumulator += chunk;
+            yield { type: "chunk", content: chunk };
+          }
+        }
+      } else {
+        const errorMsg = `No se pudo obtener resultados debido a un error persistente en SQL.`;
+        naturalResponseAccumulator = errorMsg;
+        yield { type: "chunk", content: errorMsg };
       }
 
       // Generar respuesta detallada si se solicita
       let detailedResponse;
-      if (options.detailed) {
+      if (options.detailed && success) {
         try {
-          detailedResponse =
-            await this.responseFormatter.generateNaturalResponse(sql, results, {
-              detailed: true,
-            });
+          const detailedStream = this.responseFormatter.generateNaturalResponseStream(
+            sql,
+            results,
+            { detailed: true },
+          );
+          let detailedAccumulator = "";
+          for await (const chunk of detailedStream) {
+            detailedAccumulator += chunk;
+          }
+          detailedResponse = detailedAccumulator;
         } catch (error) {
           this.logger.error("Error generating detailed response", {
             error: (error as Error).message,
@@ -308,21 +540,20 @@ export class CyberMySQLOpenAI {
       const executionTime = Date.now() - startTime;
 
       // Paso 6: Guardar en cache si fue exitoso
-      if (this.cache && this.cacheEnabled && success && naturalResponse) {
+      if (this.cache && this.cacheEnabled && success && naturalResponseAccumulator) {
         this.cache.set(
           prompt,
           this.i18n.getLanguage(),
           schemaHash,
           sql,
           results,
-          naturalResponse,
+          naturalResponseAccumulator,
           executionTime,
         );
         this.logger.info("Result cached successfully");
       }
 
       // Paso 7: Devolver resultado
-      // Calcular costo estimado si hay tokens
       if (tokenAccumulator.totalTokens > 0) {
         tokenAccumulator.estimatedCost = this.estimateTokenCost(
           tokenAccumulator.promptTokens,
@@ -337,7 +568,7 @@ export class CyberMySQLOpenAI {
         attempts,
         success,
         confidence,
-        naturalResponse,
+        naturalResponse: naturalResponseAccumulator,
         executionTime,
         fromCache: false,
         tokenUsage:
@@ -361,6 +592,7 @@ export class CyberMySQLOpenAI {
         tokenUsage: result.tokenUsage,
       });
 
+      yield { type: "done", metadata: result };
       return result;
     } catch (error) {
       this.logger.error("Error processing query", {
@@ -741,6 +973,27 @@ export class CyberMySQLOpenAI {
     );
   }
 
+  private levenshtein(a: string, b: string): number {
+    const tmp = [];
+    let i, j;
+    for (i = 0; i <= a.length; i++) {
+      tmp.push([i]);
+    }
+    for (j = 0; j <= b.length; j++) {
+      tmp[0][j] = j;
+    }
+    for (i = 1; i <= a.length; i++) {
+      for (j = 1; j <= b.length; j++) {
+        tmp[i][j] = Math.min(
+          tmp[i - 1][j] + 1,
+          tmp[i][j - 1] + 1,
+          tmp[i - 1][j - 1] + (a[i - 1] === b[j - 1] ? 0 : 1)
+        );
+      }
+    }
+    return tmp[a.length][b.length];
+  }
+
   private async reflectAndFix(
     prompt: string,
     sql: string,
@@ -751,8 +1004,9 @@ export class CyberMySQLOpenAI {
     const reflections = [];
     let attempts = 1;
     let currentSql = sql;
-    let results = [];
+    let results: any[] = [];
     let success = false;
+    let currentErrorMessage = errorMessage;
 
     // Mejora 5: filtrar schema a solo las tablas del SQL fallido
     const involvedTables = this.extractTablesFromSQL(sql);
@@ -765,43 +1019,108 @@ export class CyberMySQLOpenAI {
 
     while (attempts <= this.maxReflections && !success) {
       try {
+        // Levenshtein schema hints
+        let enhancedErrorMessage = currentErrorMessage;
+        const tableMatch = currentErrorMessage.match(/Table\s+'[^']+\.([^']+)'\s+doesn't\s+exist/i) || 
+                           currentErrorMessage.match(/Table\s+'([^']+)'\s+doesn't\s+exist/i);
+        if (tableMatch) {
+          const missingTable = tableMatch[1];
+          const allTables = Object.keys(schema);
+          const suggestions = allTables
+            .map(t => ({ name: t, dist: this.levenshtein(missingTable, t) }))
+            .filter(t => t.dist <= 3)
+            .sort((x, y) => x.dist - y.dist)
+            .map(t => `'${t.name}'`);
+          
+          if (suggestions.length > 0) {
+            enhancedErrorMessage += `\n(Hint: La tabla '${missingTable}' no existe. ¿Quisiste decir alguna de estas?: ${suggestions.join(", ")})`;
+          }
+        }
+
+        const columnMatch = currentErrorMessage.match(/Unknown\s+column\s+'([^']+)'\s+in/i);
+        if (columnMatch) {
+          const missingColumn = columnMatch[1];
+          const columnsToCheck: string[] = [];
+          for (const t of involvedTables) {
+            if (schema[t]) {
+              schema[t].columns.forEach((col: any) => {
+                const colName = col.column_name || col.COLUMN_NAME;
+                if (colName && !columnsToCheck.includes(colName)) {
+                  columnsToCheck.push(colName);
+                }
+              });
+            }
+          }
+          
+          const suggestions = columnsToCheck
+            .map(c => ({ name: c, dist: this.levenshtein(missingColumn, c) }))
+            .filter(c => c.dist <= 3)
+            .sort((x, y) => x.dist - y.dist)
+            .map(c => `'${c.name}'`);
+          
+          if (suggestions.length > 0) {
+            enhancedErrorMessage += `\n(Hint: La columna '${missingColumn}' no existe en las tablas involucradas. ¿Quisiste decir alguna de estas?: ${suggestions.join(", ")})`;
+          }
+        }
+
         // Generar reflexión sobre el error (con schema reducido)
         const reflection = await this.generateReflection(
           prompt,
           currentSql,
-          errorMessage,
+          enhancedErrorMessage,
           reducedSchema,
           requestId,
         );
 
-        // Limpiar la SQL corregida
-        const correctedSql = cleanSqlResponse(
-          reflection.fixedSql,
-          "reflect",
-          this.logger,
+        // Ejecutar candidatos en paralelo
+        const cleanedCandidates = reflection.fixedSqlCandidates.map((cand: string) => 
+          cleanSqlResponse(cand, "reflect", this.logger)
         );
 
-        reflections.push({
-          error: errorMessage,
-          reasoning: reflection.reasoning,
-          fixAttempt: correctedSql,
+        this.logger.debug("Executing SQL candidates in parallel", { candidates: cleanedCandidates });
+
+        const executionPromises = cleanedCandidates.map(async (candidate: string, index: number) => {
+          try {
+            const res = await this.dbManager.executeReadOnlyQuery(candidate);
+            return { index, candidate, results: res, error: undefined as string | undefined, success: true };
+          } catch (err) {
+            return { index, candidate, results: [] as any[], error: (err as Error).message as string | undefined, success: false };
+          }
         });
 
-        // Intentar ejecutar la consulta corregida
-        results = await this.dbManager.executeReadOnlyQuery(correctedSql);
-        success = true;
-        currentSql = correctedSql;
+        const executionResults = await Promise.all(executionPromises);
+        const successfulRun = executionResults.find(r => r.success);
 
-        this.logger.info("Query fixed successfully on attempt", {
-          attempt: attempts,
-        });
+        if (successfulRun) {
+          success = true;
+          currentSql = successfulRun.candidate;
+          results = successfulRun.results;
+          reflections.push({
+            error: currentErrorMessage,
+            reasoning: reflection.reasoning,
+            fixAttempt: currentSql,
+          });
+          this.logger.info("Query fixed successfully via parallel candidate execution", {
+            attempt: attempts,
+            candidateIndex: successfulRun.index,
+          });
+        } else {
+          reflections.push({
+            error: currentErrorMessage,
+            reasoning: reflection.reasoning,
+            fixAttempt: cleanedCandidates.join(" | "),
+          });
+          currentErrorMessage = executionResults.map(r => r.error).join(" ; ");
+          attempts++;
+          this.logger.warn("All parallel candidates failed", { attempt: attempts, errors: currentErrorMessage });
+        }
       } catch (error) {
         attempts++;
-        errorMessage = (error as Error).message;
+        currentErrorMessage = (error as Error).message;
 
-        this.logger.warn("Reflection attempt failed", {
+        this.logger.warn("Reflection attempt failed due to system error", {
           attempt: attempts,
-          error: errorMessage,
+          error: currentErrorMessage,
         });
 
         if (attempts > this.maxReflections) {
@@ -832,7 +1151,7 @@ export class CyberMySQLOpenAI {
     errorMessage: string,
     schema: Record<string, { columns: any[]; foreignKeys: any[] }>,
     requestId: string,
-  ): Promise<{ reasoning: string; fixedSql: string }> {
+  ): Promise<{ reasoning: string; fixedSqlCandidates: string[] }> {
     try {
       // Mejora 3 + 5: schema ya viene filtrado y usamos el modelo ligero
       const schemaDescription = this.buildSchemaDescription(schema);
@@ -875,13 +1194,14 @@ export class CyberMySQLOpenAI {
               function: {
                 name: "fix_sql_query",
                 description:
-                  "Fix a failed SQL query based on the error message",
+                  "Fix a failed SQL query by providing alternative candidate queries, ordered by likelihood of success",
                 parameters: {
                   type: "object",
                   properties: {
-                    fixedSql: {
-                      type: "string",
-                      description: "The corrected MySQL SELECT query",
+                    fixedSqlCandidates: {
+                      type: "array",
+                      items: { type: "string" },
+                      description: "List of up to 3 candidate MySQL queries that solve the error, ordered by likelihood of success",
                     },
                     reasoning: {
                       type: "string",
@@ -889,7 +1209,7 @@ export class CyberMySQLOpenAI {
                         "Explanation of what went wrong and how it was fixed",
                     },
                   },
-                  required: ["fixedSql", "reasoning"],
+                  required: ["fixedSqlCandidates", "reasoning"],
                 },
               },
             },
@@ -914,11 +1234,12 @@ export class CyberMySQLOpenAI {
         const toolCall = response.choices[0]?.message?.tool_calls?.[0] as any;
         if (toolCall?.function?.arguments) {
           const args = JSON.parse(toolCall.function.arguments);
+          const fixedSqlCandidates = args.fixedSqlCandidates || [args.fixedSql];
           this.logger.debug("Generated reflection via function calling", {
             reasoning: args.reasoning,
-            fixedSql: args.fixedSql,
+            candidates: fixedSqlCandidates,
           });
-          return { reasoning: args.reasoning, fixedSql: args.fixedSql };
+          return { reasoning: args.reasoning, fixedSqlCandidates };
         }
 
         throw new Error("No tool_calls in reflection response");
@@ -966,7 +1287,7 @@ export class CyberMySQLOpenAI {
           fixedSql,
         });
 
-        return { reasoning, fixedSql };
+        return { reasoning, fixedSqlCandidates: [fixedSql] };
       }
     } catch (error) {
       this.logger.error("Error generating reflection", {

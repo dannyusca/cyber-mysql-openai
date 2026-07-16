@@ -5,6 +5,7 @@
 [![npm version](https://img.shields.io/npm/v/cyber-mysql-openai.svg?style=flat-square)](https://www.npmjs.com/package/cyber-mysql-openai)
 [![License: MIT](https://img.shields.io/badge/License-MIT-blue.svg?style=flat-square)](https://opensource.org/licenses/MIT)
 [![TypeScript](https://img.shields.io/badge/%3C%2F%3E-TypeScript-%230074c1.svg?style=flat-square)](https://www.typescriptlang.org/)
+[![Ask DeepWiki](https://deepwiki.com/badge.svg)](https://deepwiki.com/dannyusca/cyber-mysql-openai)
 
 <br />
 
@@ -31,6 +32,7 @@ Cyber-MySQL-OpenAI is a powerful Node.js library that translates natural languag
 - [Basic Usage](#basic-usage)
 - [Intelligence Features (v0.3.0)](#intelligence-features-v030)
 - [Token Optimization (v0.3.2)](#token-optimization-v032)
+- [Streaming & Agentic Mode (v0.3.4)](#streaming--agentic-mode-v034)
 - [Configuration Options](#configuration-options)
 - [Cache System](#cache-system)
 - [Multi-Language Support](#multi-language-support)
@@ -347,6 +349,68 @@ Or via environment variable: `OPENAI_LIGHT_MODEL=gpt-4o-mini`
 ### 3. Filtered Schema in Reflections
 
 When a query fails and needs correction, only the schema of the **tables used in the failed SQL** is sent to the LLM — not the entire database schema. In a 30-table database, this can reduce the reflection prompt by ~80%.
+
+---
+
+## <img src="https://api.iconify.design/mdi:connection.svg" width="28" height="28" style="vertical-align: middle; margin-right: 8px;" /> Streaming & Agentic Mode (v0.3.4)
+
+This version introduces **real-time response streaming** to reduce perceived user latency to zero, and a **Multi-Step Agentic Mode** designed for complex or massive enterprise databases.
+
+### 1. Response Streaming (Callbacks & Async Generators)
+
+Instead of waiting for the full natural language explanation to be generated, you can consume it chunk-by-chunk.
+
+#### Option A: Streaming Callback (onChunk) - Backward-Compatible
+Pass an `onChunk` callback to the options parameter of `query()`:
+
+```typescript
+const result = await translator.query(
+  "What is the most expensive product?",
+  {
+    onChunk: (chunk) => {
+      process.stdout.write(chunk);
+    }
+  }
+);
+```
+
+#### Option B: Async Generator (queryStream)
+Use `queryStream()` to get full control over step-by-step agent lifecycle events:
+
+```typescript
+const stream = translator.queryStream("List our 5 latest orders");
+
+for await (const chunk of stream) {
+  if (chunk.type === "sql") {
+    console.log("SQL Generated:", chunk.sql);
+  } else if (chunk.type === "results") {
+    console.log("Database Results:", chunk.results);
+  } else if (chunk.type === "chunk" && chunk.content) {
+    process.stdout.write(chunk.content); // Explaining results in real-time
+  } else if (chunk.type === "done" && chunk.metadata) {
+    console.log("\nFinished execution in", chunk.metadata.executionTime + "ms");
+  }
+}
+```
+
+### 2. Multi-Step Agentic Mode (MCP style)
+
+For large database schemas that exceed model context windows, enable `mode: "agentic"`. Instead of injecting the entire schema at start (One-Shot), the agent uses database inspection tools dynamically:
+
+```typescript
+const agent = new CyberMySQLOpenAI({
+  database: { ... },
+  openai: { apiKey: "..." },
+  mode: "agentic" // "direct" (One-Shot) or "agentic" (Multi-Step tool exploration)
+});
+```
+
+* **Tool Exploration**: The agent sequentially invokes tools (`list_tables`, `describe_table`, `execute_sql_query`) to explore tables and schemas dynamically, then executes queries and explains them.
+
+### 3. Reflection Loop Optimizations
+
+* **Parallel Candidate Testing**: On a SQL execution failure, the reflection loop generates up to 3 candidate SQL statements in a single prompt and executes them in parallel on the database. The first one that runs successfully is chosen, resolving reflection errors in a single LLM roundtrip.
+* **Levenshtein Hints**: The library automatically calculates Levenshtein distances on table/column misspellings and injects recommendations (e.g. *"Did you mean 'created_at'?"*) into the error prompt, helping the model correct itself on the first retry.
 
 ---
 

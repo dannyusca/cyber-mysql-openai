@@ -58,6 +58,7 @@ export interface CyberMySQLOpenAIConfig {
   language?: "es" | "en"; // Idioma para respuestas (español o inglés)
   cache?: CacheConfig; // Configuración del sistema de cache
   schemaTTL?: number; // TTL del cache de schema en ms (default: 300000 = 5min)
+  mode?: "direct" | "agentic"; // Modo de consulta: directo (One-shot) o agéntico (MCP-style)
 }
 
 // Uso de tokens de OpenAI
@@ -116,6 +117,17 @@ export type LogLevel = "error" | "warn" | "info" | "debug" | "none";
 export interface NaturalResponseOptions {
   detailed?: boolean;
   bypassCache?: boolean; // Opcional: ignorar cache y forzar nueva consulta
+  onChunk?: (chunk: string) => void; // Opcional: callback para streaming
+}
+
+// Fragmento del stream reactivo
+export interface QueryStreamChunk {
+  type: "sql" | "results" | "chunk" | "reflection" | "done";
+  content?: string;
+  sql?: string;
+  results?: any[];
+  reflections?: Reflection[];
+  metadata?: Partial<TranslationResult>;
 }
 
 // Estadísticas del cache
