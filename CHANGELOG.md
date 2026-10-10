@@ -2,6 +2,24 @@
 
 All notable changes to this project will be documented in this file.
 
+## [0.4.2] - 2026-10-10
+
+### Docs
+
+- **Página de demo** — Badge y enlace a [lce-tech.com/proyectos/cyber-mysql-openai](https://lce-tech.com/proyectos/cyber-mysql-openai) en ambos README, y `homepage` del paquete apuntando a esa página.
+- **Features y Roadmap** — Se agregaron streaming, modo agéntico, protección de solo lectura y timeout por consulta. "Respuestas en streaming" figuraba como pendiente aunque se publicó en v0.3.4.
+- **README.es.md** — Se eliminaron dos bloques de código vacíos al final del archivo.
+
+Sin cambios en el código.
+
+## [0.4.1] - 2026-10-10
+
+### Docs
+
+- **Buy Me a Coffee** — Enlace actualizado a `buymeacoffee.com/lobo_cyber_ec` en ambos README.
+
+Sin cambios en el código.
+
 ## [0.4.0] - 2026-10-10
 
 ### Security

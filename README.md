@@ -6,6 +6,9 @@
 [![License: MIT](https://img.shields.io/badge/License-MIT-blue.svg?style=flat-square)](https://opensource.org/licenses/MIT)
 [![TypeScript](https://img.shields.io/badge/%3C%2F%3E-TypeScript-%230074c1.svg?style=flat-square)](https://www.typescriptlang.org/)
 [![Ask DeepWiki](https://img.shields.io/badge/Ask-DeepWiki-blue.svg?style=flat-square)](https://deepwiki.com/dannyusca/cyber-mysql-openai)
+[![Demo](https://img.shields.io/badge/demo-live-0b2a4a.svg?style=flat-square)](https://lce-tech.com/proyectos/cyber-mysql-openai)
+
+> **[See how it works](https://lce-tech.com/proyectos/cyber-mysql-openai)**: step-by-step example of a question turned into SQL, the self-correction loop and the read-only safety checks with real results. Built by [Lobo Cyber EC](https://lce-tech.com).
 
 <br />
 
@@ -66,6 +69,9 @@ Cyber-MySQL-OpenAI is a powerful Node.js library that translates natural languag
 - **Query History** — In-memory log of executed queries with performance statistics
 - **Advanced logging** — Structured logging system with token usage tracking and prompt/response audit trails
 - **Token Optimization (v0.3.2)** — Compressed schema format, `lightModel` for subtasks, and filtered schema in reflections — **50–70% fewer tokens per request**
+- **Streaming & Agentic Mode (v0.3.4)** — Real-time responses with `queryStream()` and multi-step schema exploration for large databases
+- **Read-only Safety (v0.4.0)** — `checkQuerySafety()` blocks file access (`INTO OUTFILE`, `LOAD_FILE`), `SLEEP`/`BENCHMARK`, row locks, system schemas, multiple statements and executable comments before any query reaches MySQL
+- **Query Timeout (v0.4.0)** — `database.queryTimeout` (30 s by default) stops runaway queries
 
 ---
 
@@ -718,8 +724,10 @@ This project is in **stable release** and under active development. Contribution
 - ~~Compressed schema format (66% fewer tokens)~~ (shipped in v0.3.2)
 - ~~`lightModel` for subtasks (85% cheaper reflections)~~ (shipped in v0.3.2)
 - ~~Filtered schema in reflections~~ (shipped in v0.3.2)
+- ~~Streaming responses and agentic mode~~ (shipped in v0.3.4)
+- ~~Read-only safety checks and query timeout~~ (shipped in v0.4.0)
+- ~~Interactive documentation page~~ ([lce-tech.com](https://lce-tech.com/proyectos/cyber-mysql-openai))
 - Support for additional SQL dialects
-- Streaming responses
 - Expanded documentation and usage examples
 
 ---
@@ -727,3 +735,7 @@ This project is in **stable release** and under active development. Contribution
 ## <img src="https://api.iconify.design/mdi:certificate.svg" width="28" height="28" style="vertical-align: middle; margin-right: 8px;" /> License
 
 MIT
+
+---
+
+**_Maintained by [Lobo Cyber EC](https://lce-tech.com)_** · [Demo](https://lce-tech.com/proyectos/cyber-mysql-openai) · [Report an issue](https://github.com/dannyusca/cyber-mysql-openai/issues)

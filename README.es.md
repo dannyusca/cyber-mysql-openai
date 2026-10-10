@@ -6,6 +6,9 @@
 [![License: MIT](https://img.shields.io/badge/License-MIT-blue.svg?style=flat-square)](https://opensource.org/licenses/MIT)
 [![TypeScript](https://img.shields.io/badge/%3C%2F%3E-TypeScript-%230074c1.svg?style=flat-square)](https://www.typescriptlang.org/)
 [![Ask DeepWiki](https://img.shields.io/badge/Ask-DeepWiki-blue.svg?style=flat-square)](https://deepwiki.com/dannyusca/cyber-mysql-openai)
+[![Demo](https://img.shields.io/badge/demo-en%20vivo-0b2a4a.svg?style=flat-square)](https://lce-tech.com/proyectos/cyber-mysql-openai)
+
+> **[Mira cómo funciona](https://lce-tech.com/proyectos/cyber-mysql-openai)**: ejemplo paso a paso de una pregunta convertida en SQL, la autocorrección de errores y la validación de solo lectura con resultados reales. Desarrollado por [Lobo Cyber EC](https://lce-tech.com).
 
 <br />
 
@@ -66,6 +69,9 @@ Cyber-MySQL-OpenAI es una librería para Node.js que traduce consultas en lengua
 - **Historial de Consultas** — Registro en memoria de consultas ejecutadas con estadísticas de rendimiento
 - **Logging avanzado** — Sistema de logging estructurado con seguimiento de uso de tokens y auditoría de prompts/respuestas
 - **Optimización de Tokens (v0.3.2)** — Schema comprimido, `lightModel` para subtareas y schema filtrado en reflexiones — **50–70% menos tokens por request**
+- **Streaming y Modo Agéntico (v0.3.4)** — Respuestas en tiempo real con `queryStream()` y exploración del esquema por pasos para bases de datos grandes
+- **Protección de solo lectura (v0.4.0)** — `checkQuerySafety()` bloquea acceso a archivos (`INTO OUTFILE`, `LOAD_FILE`), `SLEEP`/`BENCHMARK`, bloqueos de filas, esquemas del sistema, múltiples sentencias y comentarios ejecutables antes de que la consulta llegue a MySQL
+- **Timeout por consulta (v0.4.0)** — `database.queryTimeout` (30 s por defecto) detiene las consultas que se quedan colgadas
 
 ---
 
@@ -698,8 +704,10 @@ Este proyecto está en **versión estable** y en desarrollo activo. Las contribu
 - ~~Schema comprimido (66% menos tokens)~~ (incluido en v0.3.2)
 - ~~`lightModel` para subtareas (reflexiones 85% más baratas)~~ (incluido en v0.3.2)
 - ~~Schema filtrado en reflexiones~~ (incluido en v0.3.2)
+- ~~Respuestas en streaming y modo agéntico~~ (incluido en v0.3.4)
+- ~~Protección de solo lectura y timeout por consulta~~ (incluido en v0.4.0)
+- ~~Página de documentación interactiva~~ ([lce-tech.com](https://lce-tech.com/proyectos/cyber-mysql-openai))
 - Soporte para dialectos SQL adicionales
-- Respuestas en streaming
 - Ampliación de documentación y ejemplos de uso
 
 ---
@@ -708,6 +716,6 @@ Este proyecto está en **versión estable** y en desarrollo activo. Las contribu
 
 MIT
 
-```
+---
 
-```
+**_Mantenimiento oficial por [Lobo Cyber EC](https://lce-tech.com)_** · [Demo](https://lce-tech.com/proyectos/cyber-mysql-openai) · [Reportar un problema](https://github.com/dannyusca/cyber-mysql-openai/issues)

@@ -1,6 +1,6 @@
 {
   "name": "cyber-mysql-openai",
-  "version": "0.4.1",
+  "version": "0.4.2",
   "description": "Intelligent natural language to SQL translator with self-correction capabilities using OpenAI and MySQL",
   "main": "./dist/index.js",
   "types": "./dist/index.d.ts",
@@ -134,5 +134,6 @@
     "fast-levenshtein": "^3.0.0",
     "mysql2": "^3.24.5",
     "openai": "^5.23.2"
-  }
+  },
+  "homepage": "https://lce-tech.com/proyectos/cyber-mysql-openai"
 }
