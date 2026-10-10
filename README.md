@@ -11,7 +11,7 @@
 
 <div align="center">
   <p>Si esta librería te ahorró horas de desarrollo, considera invitarme un café:</p>
-  <a href="https://buymeacoffee.com/dannyusca" target="_blank">
+  <a href="https://buymeacoffee.com/lobo_cyber_ec" target="_blank">
     <img src="https://cdn.buymeacoffee.com/buttons/v2/default-yellow.png" alt="Buy Me A Coffee" style="height: 50px !important;width: 217px !important;" >
   </a>
 </div>
