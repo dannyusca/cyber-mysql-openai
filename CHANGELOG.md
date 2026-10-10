@@ -2,6 +2,19 @@
 
 All notable changes to this project will be documented in this file.
 
+## [0.3.5] - 2026-10-10
+
+### Security
+
+- **mysql2** actualizado a `3.24.5` y rango mínimo elevado a `^3.24.5` — corrige [GHSA-rgwj-5xj2-c3m3](https://github.com/advisories/GHSA-rgwj-5xj2-c3m3) (DoS por descompresión sin límite en el protocolo comprimido de MySQL).
+- Dependencias transitivas actualizadas con `npm audit fix`. `npm audit --omit=dev` reporta 0 vulnerabilidades.
+
+### Changed
+
+- Dependencias de desarrollo actualizadas: `@typescript-eslint/*` 8.71.1, `jest` 30.5.2, `ts-jest` 29.4.14, `@types/node` 24.19.2.
+
+Sin cambios en la API — completamente retrocompatible.
+
 ## [0.3.2] - 2026-03-07
 
 ### Added
