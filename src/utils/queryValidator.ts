@@ -24,24 +24,7 @@ export function validateQuery(
   }
 
   // 2. Bloquear operaciones peligrosas
-  const dangerousKeywords = [
-    "INSERT",
-    "UPDATE",
-    "DELETE",
-    "DROP",
-    "CREATE",
-    "ALTER",
-    "TRUNCATE",
-    "EXEC",
-    "EXECUTE",
-  ];
-  for (const keyword of dangerousKeywords) {
-    // Buscar keyword como palabra completa (no como parte de un nombre de columna)
-    const regex = new RegExp(`\\b${keyword}\\b`, "i");
-    if (regex.test(sql)) {
-      errors.push(`Operación peligrosa detectada: ${keyword}`);
-    }
-  }
+  errors.push(...checkQuerySafety(sql));
 
   // 3. Extraer tablas referenciadas del SQL
   const referencedTables = extractTablesFromSQL(sql);
@@ -112,6 +95,84 @@ export function validateQuery(
     errors,
     suggestions,
   };
+}
+
+// Construcciones peligrosas aunque la consulta empiece con SELECT
+const FORBIDDEN_PATTERNS: { pattern: RegExp; message: string }[] = [
+  {
+    pattern: /\bINTO\s+(OUTFILE|DUMPFILE)\b/i,
+    message: "Escritura de archivos (INTO OUTFILE/DUMPFILE) no permitida",
+  },
+  {
+    pattern: /\bLOAD_FILE\s*\(/i,
+    message: "Lectura de archivos del servidor (LOAD_FILE) no permitida",
+  },
+  {
+    pattern: /\b(SLEEP|BENCHMARK|GET_LOCK)\s*\(/i,
+    message:
+      "Funciones que pueden bloquear el servidor (SLEEP, BENCHMARK, GET_LOCK) no permitidas",
+  },
+  {
+    pattern: /\bFOR\s+(UPDATE|SHARE)\b|\bLOCK\s+IN\s+SHARE\s+MODE\b/i,
+    message: "Bloqueo de filas (FOR UPDATE / LOCK IN SHARE MODE) no permitido",
+  },
+  {
+    pattern: /`?\b(mysql|performance_schema)`?\s*\.\s*`?\w/i,
+    message:
+      "Acceso a esquemas del sistema (mysql, performance_schema) no permitido",
+  },
+];
+
+// Palabras clave de escritura. INSERT() y TRUNCATE() también son funciones de
+// texto/numéricas de MySQL, por eso se excluyen cuando van seguidas de "(".
+const WRITE_KEYWORDS =
+  /\b(INSERT(?!\s*\()|UPDATE|DELETE|REPLACE\s+INTO|DROP|CREATE|ALTER|TRUNCATE(?!\s*\()|RENAME|GRANT|REVOKE|CALL|LOAD\s+DATA)\b/i;
+
+// Literales de texto y comentarios no ejecutables
+const STRINGS_AND_COMMENTS =
+  /'(?:[^'\\]|\\.|'')*'|"(?:[^"\\]|\\.|"")*"|\/\*[\s\S]*?\*\/|--(?=\s|$)[^\n]*|#[^\n]*/g;
+
+/**
+ * Revisa que una consulta de solo lectura no contenga construcciones peligrosas
+ * (escritura/lectura de archivos, bloqueos, DoS, múltiples sentencias, etc.).
+ * @returns Lista de problemas encontrados; vacía si la consulta es segura
+ */
+export function checkQuerySafety(sql: string): string[] {
+  const errors: string[] = [];
+
+  // Los comentarios ejecutables (/*! ... */ y /*M! ... */) pueden ocultar cualquier cláusula
+  if (/\/\*M?!/.test(sql)) {
+    errors.push(
+      "Comentarios ejecutables de MySQL (/*! ... */) no están permitidos",
+    );
+  }
+
+  // Quitar literales y comentarios para no confundir su contenido con código
+  const code = sql.replace(STRINGS_AND_COMMENTS, " ");
+
+  // Solo una sentencia; se tolera un ";" final
+  if (code.replace(/;\s*$/, "").includes(";")) {
+    errors.push("Solo se permite una sentencia SQL por consulta");
+  }
+
+  for (const { pattern, message } of FORBIDDEN_PATTERNS) {
+    if (pattern.test(code)) {
+      errors.push(message);
+    }
+  }
+
+  // SHOW no modifica datos y su sintaxis incluye CREATE (SHOW CREATE TABLE)
+  if (!/^\s*SHOW\b/i.test(code)) {
+    // Ignorar identificadores entre backticks (ej: una columna llamada `delete`)
+    const match = code.replace(/`[^`]*`/g, " ").match(WRITE_KEYWORDS);
+    if (match) {
+      errors.push(
+        `Operación peligrosa detectada: ${match[1].replace(/\s+/g, " ").toUpperCase()}`,
+      );
+    }
+  }
+
+  return errors;
 }
 
 /**

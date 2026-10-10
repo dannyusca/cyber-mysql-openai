@@ -1,6 +1,6 @@
 // src/utils/responseFormatter.ts
 import { OpenAI } from "openai";
-import { v4 as uuidv4 } from "uuid";
+import { randomUUID } from "crypto";
 import Logger from "./index";
 import { NaturalResponseOptions } from "../types";
 import { I18n, SupportedLanguage } from "./i18n";
@@ -55,7 +55,7 @@ export class ResponseFormatter {
     results: any[] | Record<string, any>,
     options: NaturalResponseOptions = {},
   ): Promise<string> {
-    const requestId = uuidv4();
+    const requestId = randomUUID();
     const detailed = options.detailed || false;
 
     try {
@@ -157,7 +157,7 @@ export class ResponseFormatter {
     results: any[] | Record<string, any>,
     options: NaturalResponseOptions = {},
   ): AsyncGenerator<string, void, unknown> {
-    const requestId = uuidv4();
+    const requestId = randomUUID();
     const detailed = options.detailed || false;
 
     try {

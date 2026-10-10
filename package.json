@@ -1,20 +1,21 @@
 {
   "name": "cyber-mysql-openai",
-  "version": "0.3.5",
+  "version": "0.4.0",
   "description": "Intelligent natural language to SQL translator with self-correction capabilities using OpenAI and MySQL",
   "main": "./dist/index.js",
-  "module": "./dist/index.js",
   "types": "./dist/index.d.ts",
   "exports": {
     ".": {
-      "import": "./dist/index.js",
-      "require": "./dist/index.js",
-      "types": "./dist/index.d.ts"
+      "types": "./dist/index.d.ts",
+      "default": "./dist/index.js"
     }
   },
   "files": [
     "dist"
   ],
+  "engines": {
+    "node": ">=16"
+  },
   "scripts": {
     "build": "rimraf dist && tsc",
     "clean": "rimraf dist",
@@ -118,7 +119,6 @@
     "@types/fast-levenshtein": "^0.0.4",
     "@types/jest": "^30.0.0",
     "@types/node": "^24.13.3",
-    "@types/uuid": "^10.0.0",
     "@typescript-eslint/eslint-plugin": "^8.64.0",
     "@typescript-eslint/parser": "^8.64.0",
     "eslint": "^9.39.5",
@@ -133,7 +133,6 @@
     "dotenv": "^16.6.1",
     "fast-levenshtein": "^3.0.0",
     "mysql2": "^3.24.5",
-    "openai": "^5.23.2",
-    "uuid": "^11.1.1"
+    "openai": "^5.23.2"
   }
 }

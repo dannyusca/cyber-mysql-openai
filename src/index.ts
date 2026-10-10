@@ -4,7 +4,7 @@ export { DBManager } from "./db";
 export { ResponseFormatter } from "./utils/responseFormatter";
 export { cleanSqlResponse } from "./utils/sqlCleaner";
 export { Logger } from "./utils";
-export { validateQuery } from "./utils/queryValidator";
+export { validateQuery, checkQuerySafety } from "./utils/queryValidator";
 export { QueryHistory } from "./utils/queryHistory";
 export type { QueryRecord } from "./utils/queryHistory";
 
@@ -48,4 +48,5 @@ export {
   DEFAULT_MAX_REFLECTIONS,
   DEFAULT_LOG_LEVEL,
   DEFAULT_LOG_DIRECTORY,
+  DEFAULT_QUERY_TIMEOUT,
 } from "./config";

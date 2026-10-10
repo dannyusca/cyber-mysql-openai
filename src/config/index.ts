@@ -31,6 +31,7 @@ export const DEFAULT_MAX_REFLECTIONS = 3;
 export const DEFAULT_LOG_LEVEL = "info";
 export const DEFAULT_LOG_DIRECTORY = "./logs";
 export const DEFAULT_LOG_ENABLED = true;
+export const DEFAULT_QUERY_TIMEOUT = 30000;
 
 // Función para validar la configuración
 export function validateConfig(

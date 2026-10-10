@@ -2,6 +2,31 @@
 
 All notable changes to this project will be documented in this file.
 
+## [0.4.0] - 2026-10-10
+
+### Security
+
+- **Protección de solo lectura reforzada** — Nueva función `checkQuerySafety()` aplicada en `executeReadOnlyQuery()`, por lo que cubre todas las rutas de ejecución (modo directo, streaming, agéntico, reflexión y `executeSQL()`). Bloquea, aunque la consulta empiece con `SELECT`:
+  - `INTO OUTFILE` / `INTO DUMPFILE` y `LOAD_FILE()` (escritura/lectura de archivos del servidor)
+  - `SLEEP()`, `BENCHMARK()`, `GET_LOCK()` (bloqueo del servidor)
+  - `FOR UPDATE`, `FOR SHARE`, `LOCK IN SHARE MODE` (bloqueo de filas)
+  - Acceso a `mysql.*` y `performance_schema.*`
+  - Múltiples sentencias y comentarios ejecutables (`/*! ... */`)
+  - Palabras clave de escritura (ej: `EXPLAIN ANALYZE DELETE ...`)
+- **Timeout por consulta** — Nueva opción `database.queryTimeout` (default: `30000` ms, `0` = sin límite).
+- El pool de conexiones declara explícitamente `multipleStatements: false`.
+
+### Changed
+
+- `validateQuery()` usa las mismas reglas de seguridad. Los errores de schema (tabla/columna inexistente) siguen siendo informativos y ahora se registran en el log.
+- Se reemplazó `uuid` por `crypto.randomUUID()` nativo (una dependencia menos).
+- `package.json`: `exports` con `types` primero, se eliminó el campo `module` y se agregó `engines.node >= 16`.
+- README: badge de DeepWiki ahora usa shields.io (la imagen original no se mostraba) y se documentó el uso de un usuario MySQL de solo lectura.
+
+### Migration
+
+Las consultas que antes se ejecutaban y ahora contienen alguna de las construcciones bloqueadas fallarán con `Query blocked by read-only safety check: ...`. Las consultas que tarden más de 30 s ahora fallan por timeout; para conservar el comportamiento anterior usa `queryTimeout: 0`.
+
 ## [0.3.5] - 2026-10-10
 
 ### Security

@@ -5,7 +5,7 @@
 [![npm version](https://img.shields.io/npm/v/cyber-mysql-openai.svg?style=flat-square)](https://www.npmjs.com/package/cyber-mysql-openai)
 [![License: MIT](https://img.shields.io/badge/License-MIT-blue.svg?style=flat-square)](https://opensource.org/licenses/MIT)
 [![TypeScript](https://img.shields.io/badge/%3C%2F%3E-TypeScript-%230074c1.svg?style=flat-square)](https://www.typescriptlang.org/)
-[![Ask DeepWiki](https://deepwiki.com/badge.svg)](https://deepwiki.com/dannyusca/cyber-mysql-openai)
+[![Ask DeepWiki](https://img.shields.io/badge/Ask-DeepWiki-blue.svg?style=flat-square)](https://deepwiki.com/dannyusca/cyber-mysql-openai)
 
 <br />
 
@@ -207,6 +207,25 @@ Every generated query is automatically validated before execution. The system ch
 - **Schema validation**: Checks for non-existent tables or columns (best-effort).
 - **Cartesian products**: Warns about potential cartesian products due to missing JOIN conditions.
 - **Performance checks**: Identifies missing `LIMIT` clauses on potentially large result sets.
+
+**Read-only protection (v0.4.0)** — Every query the library executes goes through `checkQuerySafety()` and is **blocked** if it contains:
+
+- File writes or reads: `INTO OUTFILE`, `INTO DUMPFILE`, `LOAD_FILE()`
+- Functions that can stall the server: `SLEEP()`, `BENCHMARK()`, `GET_LOCK()`
+- Row locking: `FOR UPDATE`, `FOR SHARE`, `LOCK IN SHARE MODE`
+- System schema access: `mysql.*`, `performance_schema.*`
+- Multiple statements or executable comments (`/*! ... */`)
+
+Each query also has a time limit (`database.queryTimeout`, 30 s by default).
+
+> **Recommended:** connect the library with a **read-only** MySQL user. It is the strongest defense, because the server itself rejects any write even if a query gets past validation:
+>
+> ```sql
+> CREATE USER 'cyber_readonly'@'%' IDENTIFIED BY 'a_strong_password';
+> GRANT SELECT ON my_database.* TO 'cyber_readonly'@'%';
+> -- Optional: server-side time limit too (MySQL 5.7.8+, in ms)
+> -- SET GLOBAL max_execution_time = 30000;
+> ```
 
 ### 3. Schema Caching
 
@@ -427,6 +446,7 @@ const translator = new CyberMySQLOpenAI({
     database: "my_database",
     ssl: false,
     socketPath: "/path/to/mysql.sock", // Optional
+    queryTimeout: 30000, // Optional: max time per query in ms (0 = no limit) (v0.4.0)
   },
 
   // OpenAI settings

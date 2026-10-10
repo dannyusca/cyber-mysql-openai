@@ -5,7 +5,7 @@
 [![npm version](https://img.shields.io/npm/v/cyber-mysql-openai.svg?style=flat-square)](https://www.npmjs.com/package/cyber-mysql-openai)
 [![License: MIT](https://img.shields.io/badge/License-MIT-blue.svg?style=flat-square)](https://opensource.org/licenses/MIT)
 [![TypeScript](https://img.shields.io/badge/%3C%2F%3E-TypeScript-%230074c1.svg?style=flat-square)](https://www.typescriptlang.org/)
-[![Ask DeepWiki](https://deepwiki.com/badge.svg)](https://deepwiki.com/dannyusca/cyber-mysql-openai)
+[![Ask DeepWiki](https://img.shields.io/badge/Ask-DeepWiki-blue.svg?style=flat-square)](https://deepwiki.com/dannyusca/cyber-mysql-openai)
 
 <br />
 
@@ -160,6 +160,25 @@ Cada consulta generada se valida automáticamente antes de su ejecución. El sis
 - **Validación de esquema**: Verifica tablas o columnas inexistentes (mejor esfuerzo).
 - **Productos cartesianos**: Advierte sobre posibles productos cartesianos por condiciones JOIN faltantes.
 - **Chequeos de rendimiento**: Identifica consultas grandes sin cláusula `LIMIT`.
+
+**Protección de solo lectura (v0.4.0)** — Toda consulta que ejecuta la librería pasa por `checkQuerySafety()` y se **bloquea** si contiene:
+
+- Escritura o lectura de archivos: `INTO OUTFILE`, `INTO DUMPFILE`, `LOAD_FILE()`
+- Funciones que pueden bloquear el servidor: `SLEEP()`, `BENCHMARK()`, `GET_LOCK()`
+- Bloqueo de filas: `FOR UPDATE`, `FOR SHARE`, `LOCK IN SHARE MODE`
+- Acceso a esquemas del sistema: `mysql.*`, `performance_schema.*`
+- Más de una sentencia o comentarios ejecutables (`/*! ... */`)
+
+Además, cada consulta tiene un tiempo máximo (`database.queryTimeout`, 30 s por defecto).
+
+> **Recomendado:** conecta la librería con un usuario MySQL de **solo lectura**. Es la defensa más fuerte, porque el propio servidor rechaza cualquier escritura aunque una consulta logre pasar la validación:
+>
+> ```sql
+> CREATE USER 'cyber_readonly'@'%' IDENTIFIED BY 'una_clave_segura';
+> GRANT SELECT ON mi_base.* TO 'cyber_readonly'@'%';
+> -- Opcional: límite de tiempo también del lado del servidor (MySQL 5.7.8+, en ms)
+> -- SET GLOBAL max_execution_time = 30000;
+> ```
 
 ### 3. Cache de Esquema
 
@@ -410,6 +429,7 @@ const translator = new CyberMySQLOpenAI({
     database: "my_database",
     ssl: false,
     socketPath: "/path/to/mysql.sock", // Opcional
+    queryTimeout: 30000, // Opcional: tiempo máximo por consulta en ms (0 = sin límite) (v0.4.0)
   },
 
   // Configuración de OpenAI

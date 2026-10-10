@@ -30,6 +30,7 @@ export interface DBConfig {
   database: string;
   ssl?: boolean;
   socketPath?: string;
+  queryTimeout?: number; // Tiempo máximo por consulta en ms (default: 30000, 0 = sin límite)
 }
 
 // Configuración de OpenAI

@@ -2,6 +2,8 @@
 import mysql from "mysql2/promise";
 import { DBConfig } from "../types";
 import Logger from "../utils/index";
+import { checkQuerySafety } from "../utils/queryValidator";
+import { DEFAULT_QUERY_TIMEOUT } from "../config";
 
 /**
  * Clase DBManager que maneja la conexión a la base de datos
@@ -32,6 +34,7 @@ export class DBManager {
           database: this.config.database,
           ssl: this.config.ssl ? { rejectUnauthorized: true } : undefined,
           socketPath: this.config.socketPath,
+          multipleStatements: false,
           waitForConnections: true,
           connectionLimit: 10,
           queueLimit: 0,
@@ -77,7 +80,11 @@ export class DBManager {
   async executeQuery(sql: string, params: any[] = []): Promise<any> {
     try {
       const pool = await this.getPool();
-      const [rows] = await pool.query(sql, params);
+      const timeout = this.config.queryTimeout ?? DEFAULT_QUERY_TIMEOUT;
+      const [rows] = await pool.query(
+        { sql, timeout: timeout > 0 ? timeout : undefined },
+        params,
+      );
       return rows;
     } catch (error) {
       this.logger.error("Error executing SQL query:", error);
@@ -105,6 +112,13 @@ export class DBManager {
       ) {
         throw new Error(
           "Only SELECT, SHOW, DESCRIBE, and EXPLAIN queries are allowed in read-only mode",
+        );
+      }
+
+      const safetyErrors = checkQuerySafety(sql);
+      if (safetyErrors.length > 0) {
+        throw new Error(
+          `Query blocked by read-only safety check: ${safetyErrors.join("; ")}`,
         );
       }
 

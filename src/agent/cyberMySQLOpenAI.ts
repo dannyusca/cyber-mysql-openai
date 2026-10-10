@@ -1,6 +1,6 @@
 // src/agent/cyberMySQLOpenAI.ts
 import { OpenAI } from "openai";
-import { v4 as uuidv4 } from "uuid";
+import { randomUUID } from "crypto";
 import {
   CyberMySQLOpenAIConfig,
   TranslationResult,
@@ -188,7 +188,7 @@ export class CyberMySQLOpenAI {
     prompt: string,
     options: NaturalResponseOptions = {},
   ): AsyncGenerator<QueryStreamChunk, TranslationResult, unknown> {
-    const requestId = uuidv4();
+    const requestId = randomUUID();
     const startTime = Date.now();
     const tokenAccumulator: TokenUsage = {
       promptTokens: 0,
@@ -436,10 +436,13 @@ export class CyberMySQLOpenAI {
 
       yield { type: "sql", sql };
 
-      // Paso 3.5: Validar la query generada
+      // Paso 3.5: Validar la query generada. Las reglas de seguridad se aplican
+      // en executeReadOnlyQuery; los errores de schema son de mejor esfuerzo
+      // (pueden dar falsos positivos) y solo se registran.
       const validation = validateQuery(sql, schema);
-      if (validation.warnings.length > 0) {
+      if (validation.errors.length > 0 || validation.warnings.length > 0) {
         this.logger.warn("Advertencias de validación de query", {
+          errors: validation.errors,
           warnings: validation.warnings,
         });
       }
